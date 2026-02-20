@@ -1,0 +1,215 @@
+/* ── Reset & Base ───────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --color-primary: #4f46e5;
+  --color-primary-hover: #4338ca;
+  --color-success: #16a34a;
+  --color-warning: #d97706;
+  --color-danger: #dc2626;
+  --color-bg: #f8fafc;
+  --color-surface: #ffffff;
+  --color-border: #e2e8f0;
+  --color-text: #1e293b;
+  --color-text-muted: #64748b;
+  --radius: 10px;
+  --shadow: 0 1px 4px rgba(0,0,0,.08);
+}
+
+body {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text);
+  min-height: 100vh;
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────────── */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  padding: 0 2rem;
+  height: 60px;
+  background: var(--color-primary);
+  color: #fff;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.header__logo { font-size: 1.25rem; font-weight: 700; }
+
+.header__nav { display: flex; gap: 0.5rem; }
+
+.nav-link {
+  padding: 0.4rem 1rem;
+  border-radius: 6px;
+  color: rgba(255,255,255,.8);
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: background .15s, color .15s;
+}
+.nav-link:hover, .nav-link.active {
+  background: rgba(255,255,255,.2);
+  color: #fff;
+}
+
+/* ── Main ───────────────────────────────────────────────────────────────────── */
+.main { max-width: 1200px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+/* ── Pages ──────────────────────────────────────────────────────────────────── */
+.page { display: none; }
+.page.active { display: block; }
+.page__title { font-size: 1.6rem; font-weight: 700; margin-bottom: 1.5rem; }
+
+/* ── Stat Cards ─────────────────────────────────────────────────────────────── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.stat-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  text-align: center;
+  box-shadow: var(--shadow);
+}
+.stat-card__icon { font-size: 2rem; margin-bottom: .5rem; }
+.stat-card__value { font-size: 2rem; font-weight: 700; color: var(--color-primary); }
+.stat-card__label { font-size: .85rem; color: var(--color-text-muted); margin-top: .25rem; }
+
+/* ── Panel ──────────────────────────────────────────────────────────────────── */
+.panel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  box-shadow: var(--shadow);
+}
+.panel__title { font-size: 1.1rem; font-weight: 600; margin-bottom: 1rem; }
+
+/* ── Cards ──────────────────────────────────────────────────────────────────── */
+.call-card, .agent-card, .analysis-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  margin-bottom: .75rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  box-shadow: var(--shadow);
+}
+
+.call-card__info, .agent-card__info, .analysis-card__info { flex: 1; }
+.call-card__title, .agent-card__name, .analysis-card__title {
+  font-weight: 600;
+  margin-bottom: .2rem;
+}
+.call-card__sub, .agent-card__sub, .analysis-card__sub {
+  font-size: .82rem;
+  color: var(--color-text-muted);
+}
+
+.badge {
+  display: inline-block;
+  padding: .2rem .6rem;
+  border-radius: 100px;
+  font-size: .75rem;
+  font-weight: 600;
+}
+.badge--positive { background: #dcfce7; color: var(--color-success); }
+.badge--neutral  { background: #f1f5f9; color: var(--color-text-muted); }
+.badge--negative { background: #fee2e2; color: var(--color-danger); }
+.badge--pending  { background: #fef9c3; color: var(--color-warning); }
+.badge--completed{ background: #dcfce7; color: var(--color-success); }
+
+/* ── Toolbar ────────────────────────────────────────────────────────────────── */
+.toolbar { margin-bottom: 1rem; }
+
+/* ── Buttons ────────────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  padding: .5rem 1.1rem;
+  border: none;
+  border-radius: 6px;
+  font-size: .9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background .15s;
+}
+.btn--primary  { background: var(--color-primary); color: #fff; }
+.btn--primary:hover { background: var(--color-primary-hover); }
+.btn--secondary{ background: var(--color-border); color: var(--color-text); }
+.btn--secondary:hover { background: #cbd5e1; }
+
+/* ── Form ───────────────────────────────────────────────────────────────────── */
+.form { display: flex; flex-direction: column; gap: .85rem; }
+.form__label { display: flex; flex-direction: column; gap: .3rem; font-size: .9rem; font-weight: 500; }
+.form__input {
+  padding: .5rem .75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: .9rem;
+  outline: none;
+  transition: border-color .15s;
+}
+.form__input:focus { border-color: var(--color-primary); }
+.form__actions { display: flex; justify-content: flex-end; gap: .5rem; margin-top: .25rem; }
+
+/* ── Modal ──────────────────────────────────────────────────────────────────── */
+.modal { position: fixed; inset: 0; z-index: 200; }
+.modal.hidden { display: none; }
+.modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,.4);
+}
+.modal__box {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  padding: 1.75rem;
+  width: min(480px, 95vw);
+  box-shadow: 0 8px 30px rgba(0,0,0,.15);
+}
+.modal__title { font-size: 1.15rem; font-weight: 700; margin-bottom: 1.25rem; }
+
+/* ── Quality bar ─────────────────────────────────────────────────────────────── */
+.quality-bar {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  margin-top: .4rem;
+}
+.quality-bar__track {
+  flex: 1;
+  height: 6px;
+  background: var(--color-border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.quality-bar__fill {
+  height: 100%;
+  background: var(--color-primary);
+  border-radius: 3px;
+  transition: width .4s ease;
+}
+.quality-bar__label { font-size: .8rem; color: var(--color-text-muted); min-width: 30px; text-align: right; }
+
+/* ── Empty state ────────────────────────────────────────────────────────────── */
+.empty-state {
+  text-align: center;
+  padding: 2.5rem;
+  color: var(--color-text-muted);
+  font-size: .95rem;
+}

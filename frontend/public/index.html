@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ResoCall — Анализ Колл-Центра</title>
+  <link rel="stylesheet" href="../src/styles.css" />
+</head>
+<body>
+  <div id="app">
+    <header class="header">
+      <div class="header__logo">📞 ResoCall</div>
+      <nav class="header__nav">
+        <a href="#dashboard" class="nav-link active" data-page="dashboard">Дашборд</a>
+        <a href="#calls" class="nav-link" data-page="calls">Звонки</a>
+        <a href="#agents" class="nav-link" data-page="agents">Агенты</a>
+        <a href="#analysis" class="nav-link" data-page="analysis">Анализ</a>
+      </nav>
+    </header>
+
+    <main class="main">
+      <!-- Dashboard Page -->
+      <section id="page-dashboard" class="page active">
+        <h1 class="page__title">Дашборд</h1>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-card__icon">📞</div>
+            <div class="stat-card__value" id="stat-total-calls">—</div>
+            <div class="stat-card__label">Всего звонков</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card__icon">✅</div>
+            <div class="stat-card__value" id="stat-analyzed">—</div>
+            <div class="stat-card__label">Проанализировано</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card__icon">⭐</div>
+            <div class="stat-card__value" id="stat-avg-quality">—</div>
+            <div class="stat-card__label">Средняя оценка</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card__icon">😊</div>
+            <div class="stat-card__value" id="stat-positive">—</div>
+            <div class="stat-card__label">Позитивных</div>
+          </div>
+        </div>
+        <div class="panel">
+          <h2 class="panel__title">Последние звонки</h2>
+          <div id="recent-calls-list" class="calls-list"></div>
+        </div>
+      </section>
+
+      <!-- Calls Page -->
+      <section id="page-calls" class="page">
+        <h1 class="page__title">Звонки</h1>
+        <div class="toolbar">
+          <button class="btn btn--primary" id="btn-add-call">+ Добавить звонок</button>
+        </div>
+        <div id="calls-list" class="calls-list"></div>
+
+        <!-- Add Call Modal -->
+        <div id="modal-add-call" class="modal hidden">
+          <div class="modal__backdrop"></div>
+          <div class="modal__box">
+            <h2 class="modal__title">Новый звонок</h2>
+            <form id="form-add-call" class="form">
+              <label class="form__label">
+                ID агента
+                <input class="form__input" type="text" name="agent_id" placeholder="uuid агента" required />
+              </label>
+              <label class="form__label">
+                Телефон клиента
+                <input class="form__input" type="tel" name="customer_phone" placeholder="+7 900 000-00-00" required />
+              </label>
+              <div class="form__actions">
+                <button class="btn btn--secondary" type="button" id="btn-cancel-call">Отмена</button>
+                <button class="btn btn--primary" type="submit">Создать</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <!-- Agents Page -->
+      <section id="page-agents" class="page">
+        <h1 class="page__title">Агенты</h1>
+        <div class="toolbar">
+          <button class="btn btn--primary" id="btn-add-agent">+ Добавить агента</button>
+        </div>
+        <div id="agents-list" class="agents-list"></div>
+
+        <!-- Add Agent Modal -->
+        <div id="modal-add-agent" class="modal hidden">
+          <div class="modal__backdrop"></div>
+          <div class="modal__box">
+            <h2 class="modal__title">Новый агент</h2>
+            <form id="form-add-agent" class="form">
+              <label class="form__label">
+                Имя
+                <input class="form__input" type="text" name="name" placeholder="Иван Иванов" required />
+              </label>
+              <label class="form__label">
+                Отдел
+                <input class="form__input" type="text" name="department" placeholder="Продажи" />
+              </label>
+              <label class="form__label">
+                Email
+                <input class="form__input" type="email" name="email" placeholder="agent@company.ru" />
+              </label>
+              <div class="form__actions">
+                <button class="btn btn--secondary" type="button" id="btn-cancel-agent">Отмена</button>
+                <button class="btn btn--primary" type="submit">Создать</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <!-- Analysis Page -->
+      <section id="page-analysis" class="page">
+        <h1 class="page__title">Анализ звонков</h1>
+        <div id="analysis-list" class="analysis-list"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="../src/api.js"></script>
+  <script src="../src/components/CallCard.js"></script>
+  <script src="../src/components/AgentCard.js"></script>
+  <script src="../src/components/AnalysisCard.js"></script>
+  <script src="../src/pages/dashboard.js"></script>
+  <script src="../src/pages/calls.js"></script>
+  <script src="../src/pages/agents.js"></script>
+  <script src="../src/pages/analysis.js"></script>
+  <script src="../src/app.js"></script>
+</body>
+</html>
