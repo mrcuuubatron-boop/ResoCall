@@ -22,27 +22,15 @@ export default function Home() {
 
   // Если не авторизован - показываем страницу авторизации
   if (!isLoggedIn) {
-    return (
-      <div className="min-h-screen bg-zinc-900 flex items-center justify-center p-6">
-        <div className="w-full max-w-md">
-          <header className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-white mb-2">ResoCall</h1>
-            <p className="text-zinc-400">Анализ деятельности операторов call-центра с помощью ИИ</p>
-          </header>
-          <section className="bg-zinc-500 rounded-lg p-8">
-            <AuthPanel onLogin={handleLogin} />
-          </section>
-        </div>
-      </div>
-    )
+    return <AuthPanel onLogin={handleLogin} />
   }
 
-  // Если авторизован - показываем панель соответствующую роли на всю страницу
+  // Если авторизован - показываем панель соответствующую роли
   return (
-    <div className="min-h-screen bg-zinc-900 flex flex-col">
-      {userRole === "user" && <UserPanel onLogout={handleLogout} />}
-      {userRole === "engineer" && <EngineerPanel onLogout={handleLogout} />}
+    <>
+      {userRole === "operator" && <UserPanel onLogout={handleLogout} />}
+      {userRole === "analyst" && <EngineerPanel onLogout={handleLogout} />}
       {userRole === "admin" && <AdminPanel onLogout={handleLogout} />}
-    </div>
+    </>
   )
 }
