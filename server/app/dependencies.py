@@ -14,6 +14,8 @@ class AppContext:
                 sample_rate=16000,
                 asr_model=settings.asr_model,
                 denoise=settings.denoise,
+                use_external_asr_module=settings.external_asr_module,
+                external_asr_module_path=str(settings.external_asr_module_path),
             )
         )
 
