@@ -142,9 +142,16 @@ def get_result(
 @router.get("/health")
 def health(request: Request) -> JSONResponse:
     ctx = request.app.state.ctx
+    pipeline_runtime = ctx.pipeline.runtime_info()
     payload = {
         "status": "ok",
-        "asr_model": ctx.pipeline.cfg.asr_model,
         "workers": ctx.settings.max_workers,
+        "database_ok": ctx.db.ping(),
+        "database_path": str(ctx.settings.db_path),
+        "asr_model": pipeline_runtime["asr_model"],
+        "external_asr_enabled": pipeline_runtime["external_asr_enabled"],
+        "external_asr_status": pipeline_runtime["external_asr_status"],
+        "external_asr_module_path": pipeline_runtime["external_asr_module_path"],
+        "external_asr_error": pipeline_runtime["external_asr_error"],
     }
     return JSONResponse(payload)

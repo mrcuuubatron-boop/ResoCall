@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import importlib.util
 from threading import Lock
 from typing import Any
 
@@ -17,6 +18,8 @@ class PipelineConfig:
     sample_rate: int = 16000
     asr_model: str = "base"
     denoise: bool = True
+    use_external_asr_module: bool = True
+    external_asr_module_path: str = "../ASR/ASR.py"
 
 
 class ProcessingPipeline:
@@ -26,6 +29,47 @@ class ProcessingPipeline:
         self.cfg = cfg
         self._model_lock = Lock()
         self._model = None
+        self._external_asr_status = "disabled"
+        self._external_asr_error: str | None = None
+        self._external_analyzer = self._build_external_analyzer()
+
+    def _build_external_analyzer(self):
+        if not self.cfg.use_external_asr_module:
+            self._external_asr_status = "disabled"
+            self._external_asr_error = None
+            return None
+
+        try:
+            module_spec = importlib.util.spec_from_file_location("resocall_external_asr", self.cfg.external_asr_module_path)
+            if module_spec is None or module_spec.loader is None:
+                self._external_asr_status = "unavailable"
+                self._external_asr_error = "Cannot load module spec"
+                return None
+            module = importlib.util.module_from_spec(module_spec)
+            module_spec.loader.exec_module(module)
+            analyzer_cls = getattr(module, "CallAnalyzer", None)
+            if analyzer_cls is None:
+                self._external_asr_status = "unavailable"
+                self._external_asr_error = "CallAnalyzer class is missing"
+                return None
+            analyzer = analyzer_cls(asr_model_name=self.cfg.asr_model, sr=self.cfg.sample_rate, denoise=self.cfg.denoise)
+            self._external_asr_status = "active"
+            self._external_asr_error = None
+            return analyzer
+        except Exception as exc:
+            # Fallback to internal pipeline when external module is unavailable.
+            self._external_asr_status = "unavailable"
+            self._external_asr_error = str(exc)
+            return None
+
+    def runtime_info(self) -> dict[str, Any]:
+        return {
+            "external_asr_enabled": self.cfg.use_external_asr_module,
+            "external_asr_status": self._external_asr_status,
+            "external_asr_module_path": self.cfg.external_asr_module_path,
+            "external_asr_error": self._external_asr_error,
+            "asr_model": self.cfg.asr_model,
+        }
 
     def reload_model(self, model_name: str) -> None:
         with self._model_lock:
@@ -145,7 +189,33 @@ class ProcessingPipeline:
     def process(self, task_id: str, file_name: str, audio_path: str, required_phrases: list[str]) -> dict[str, Any]:
         audio = self._load_audio(audio_path)
         quality_warnings = self._audio_quality_warnings(audio)
-        segments_raw = self._transcribe(audio)
+
+        external_segments: list[dict[str, Any]] | None = None
+        if self._external_analyzer is not None:
+            try:
+                external_result = self._external_analyzer.analyze(audio_path)
+                external_segments = external_result.get("segments", [])
+                self._external_asr_status = "active"
+                self._external_asr_error = None
+            except Exception as exc:
+                self._external_asr_status = "runtime_failed"
+                self._external_asr_error = str(exc)
+                external_segments = None
+
+        if external_segments is not None:
+            segments_raw = [
+                {
+                    "start": float(segment.get("start", 0.0)),
+                    "end": float(segment.get("end", 0.0)),
+                    "text": str(segment.get("text", "")).strip(),
+                    "mean_pitch": segment.get("mean_pitch"),
+                    "pitch_std": segment.get("pitch_std"),
+                    "mean_rms": segment.get("mean_rms"),
+                }
+                for segment in external_segments
+            ]
+        else:
+            segments_raw = self._transcribe(audio)
 
         segments_out: list[SegmentOut] = []
         sentiment_scores: list[float] = []
@@ -154,7 +224,12 @@ class ProcessingPipeline:
 
         for segment in segments_raw:
             sentiment, sentiment_score = self._simple_sentiment(segment["text"])
-            mean_pitch, pitch_std, mean_rms = self._acoustic_metrics(audio, segment["start"], segment["end"])
+            if "mean_pitch" in segment or "pitch_std" in segment or "mean_rms" in segment:
+                mean_pitch = segment.get("mean_pitch")
+                pitch_std = segment.get("pitch_std")
+                mean_rms = segment.get("mean_rms")
+            else:
+                mean_pitch, pitch_std, mean_rms = self._acoustic_metrics(audio, segment["start"], segment["end"])
 
             sentiment_scores.append(sentiment_score)
             sentiment_labels.append(sentiment)
