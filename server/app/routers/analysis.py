@@ -146,6 +146,8 @@ def health(request: Request) -> JSONResponse:
     payload = {
         "status": "ok",
         "workers": ctx.settings.max_workers,
+        "database_ok": ctx.db.ping(),
+        "database_path": str(ctx.settings.db_path),
         "asr_model": pipeline_runtime["asr_model"],
         "external_asr_enabled": pipeline_runtime["external_asr_enabled"],
         "external_asr_status": pipeline_runtime["external_asr_status"],

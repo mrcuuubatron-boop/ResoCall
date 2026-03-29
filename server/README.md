@@ -32,6 +32,27 @@ cp .env.example .env
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
+## База данных (SQLite)
+
+В сервер добавлена локальная SQLite БД для аутентификации и выполнения SQL-запросов.
+
+- Путь к БД: `RESOCALL_DB_PATH` (по умолчанию `./data/resocall.db`)
+- Таблица: `users(login, password, role)`
+- Демо-пользователи создаются автоматически при старте сервера.
+
+Теперь endpoint входа `POST /api/v1/auth/login` проверяет данные через SQL-запрос в SQLite.
+
+Проверка состояния БД через health:
+
+```bash
+curl http://127.0.0.1/api/v1/health
+```
+
+В ответе должны быть поля:
+
+- `database_ok: true` - SQL-запрос `SELECT 1` выполнился успешно.
+- `database_path` - путь к файлу SQLite БД.
+
 ## Примеры запросов
 
 Вход:
@@ -136,6 +157,8 @@ curl http://127.0.0.1/api/v1/health
 
 Ключевые поля в ответе:
 
+- `database_ok`: доступна ли БД и выполняется ли SQL-запрос.
+- `database_path`: путь к файлу SQLite.
 - `external_asr_enabled`: включен ли режим внешнего модуля.
 - `external_asr_status`: `active`, `disabled`, `unavailable`, `runtime_failed`.
 - `external_asr_error`: текст последней ошибки (если есть).

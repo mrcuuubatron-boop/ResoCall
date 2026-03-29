@@ -1,5 +1,6 @@
 from app.config import Settings, get_settings
 from app.services.audio_pipeline import PipelineConfig, ProcessingPipeline
+from app.services.database import Database
 from app.services.storage import Storage
 from app.services.task_manager import TaskManager
 
@@ -8,6 +9,7 @@ class AppContext:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
         self.storage = Storage(settings)
+        self.db = Database(settings.db_path)
         self.tasks = TaskManager(max_workers=settings.max_workers)
         self.pipeline = ProcessingPipeline(
             PipelineConfig(
