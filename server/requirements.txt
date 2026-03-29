@@ -7,3 +7,4 @@ librosa==0.11.0
 soundfile==0.13.1
 noisereduce==3.0.3
 openai-whisper==20250625
+psycopg[binary]==3.2.9

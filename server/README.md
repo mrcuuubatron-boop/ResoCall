@@ -32,15 +32,45 @@ cp .env.example .env
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-## База данных (SQLite)
+## База данных (SQLite и PostgreSQL)
 
-В сервер добавлена локальная SQLite БД для аутентификации и выполнения SQL-запросов.
+В сервере поддерживаются 2 backend-режима БД для SQL-запросов аутентификации:
 
-- Путь к БД: `RESOCALL_DB_PATH` (по умолчанию `./data/resocall.db`)
-- Таблица: `users(login, password, role)`
-- Демо-пользователи создаются автоматически при старте сервера.
+- `sqlite` (по умолчанию): локальный файл `RESOCALL_DB_PATH`
+- `postgresql`: подключение по `RESOCALL_POSTGRES_DSN`
 
-Теперь endpoint входа `POST /api/v1/auth/login` проверяет данные через SQL-запрос в SQLite.
+Общие переменные:
+
+- `RESOCALL_DB_BACKEND=sqlite|postgresql`
+- `RESOCALL_DB_PATH=./data/resocall.db`
+- `RESOCALL_POSTGRES_DSN=postgresql://resocall:resocall@127.0.0.1:5432/resocall`
+
+Таблица пользователей:
+
+- `users(login, password, role)`
+
+Endpoint входа `POST /api/v1/auth/login` проверяет данные через SQL-запрос в выбранной БД.
+
+### Подготовка PostgreSQL
+
+Готовые артефакты:
+
+- `deploy/postgres/docker-compose.yml`
+- `deploy/postgres/init.sql`
+
+Запуск локального PostgreSQL:
+
+```bash
+cd server/deploy/postgres
+docker compose up -d
+```
+
+Далее в `.env`:
+
+```bash
+RESOCALL_DB_BACKEND=postgresql
+RESOCALL_POSTGRES_DSN=postgresql://resocall:resocall@127.0.0.1:5432/resocall
+```
 
 Проверка состояния БД через health:
 
@@ -50,6 +80,7 @@ curl http://127.0.0.1/api/v1/health
 
 В ответе должны быть поля:
 
+- `db_backend: sqlite|postgresql` - активный backend БД.
 - `database_ok: true` - SQL-запрос `SELECT 1` выполнился успешно.
 - `database_path` - путь к файлу SQLite БД.
 

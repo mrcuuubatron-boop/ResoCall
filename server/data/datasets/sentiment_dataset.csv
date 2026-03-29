@@ -1,0 +1,31 @@
+sample_id,created_at,text,label,source,is_augmented
+1,2026-03-29T10:00:00Z,service worked quickly and issue was solved,positive,synthetic,false
+2,2026-03-29T10:00:01Z,thanks support team for clear guidance,positive,synthetic,false
+3,2026-03-29T10:00:02Z,operator was polite and helpful,positive,synthetic,false
+4,2026-03-29T10:00:03Z,problem resolved in one call,positive,synthetic,false
+5,2026-03-29T10:00:04Z,good quality of communication and fast response,positive,synthetic,false
+6,2026-03-29T10:00:05Z,agent explained every step clearly,positive,synthetic,false
+7,2026-03-29T10:00:06Z,excellent support and quick fix,positive,synthetic,false
+8,2026-03-29T10:00:07Z,issue closed and customer satisfied,positive,synthetic,false
+9,2026-03-29T10:00:08Z,pleasant conversation with useful outcome,positive,synthetic,false
+10,2026-03-29T10:00:09Z,support handled request professionally,positive,synthetic,false
+11,2026-03-29T10:00:10Z,call was average and no strong emotions,neutral,synthetic,false
+12,2026-03-29T10:00:11Z,customer asked for information only,neutral,synthetic,false
+13,2026-03-29T10:00:12Z,operator provided standard consultation,neutral,synthetic,false
+14,2026-03-29T10:00:13Z,request was registered for follow up,neutral,synthetic,false
+15,2026-03-29T10:00:14Z,conversation finished without escalation,neutral,synthetic,false
+16,2026-03-29T10:00:15Z,client clarified tariff details,neutral,synthetic,false
+17,2026-03-29T10:00:16Z,no complaints and no praise in dialog,neutral,synthetic,false
+18,2026-03-29T10:00:17Z,status inquiry completed by protocol,neutral,synthetic,false
+19,2026-03-29T10:00:18Z,agent answered factual questions,neutral,synthetic,false
+20,2026-03-29T10:00:19Z,issue remains open pending technical check,neutral,synthetic,false
+21,2026-03-29T10:00:20Z,customer is unhappy because service is unstable,negative,synthetic,false
+22,2026-03-29T10:00:21Z,connection drops repeatedly and nothing works,negative,synthetic,false
+23,2026-03-29T10:00:22Z,billing mistake caused frustration,negative,synthetic,false
+24,2026-03-29T10:00:23Z,long wait time and unresolved issue,negative,synthetic,false
+25,2026-03-29T10:00:24Z,client reports poor support experience,negative,synthetic,false
+26,2026-03-29T10:00:25Z,operator could not provide a solution,negative,synthetic,false
+27,2026-03-29T10:00:26Z,repeated failures increased complaint level,negative,synthetic,false
+28,2026-03-29T10:00:27Z,service outage triggered strong dissatisfaction,negative,synthetic,false
+29,2026-03-29T10:00:28Z,user requests termination due to poor quality,negative,synthetic,false
+30,2026-03-29T10:00:29Z,call ended with unresolved technical error,negative,synthetic,false
