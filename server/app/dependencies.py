@@ -9,11 +9,7 @@ class AppContext:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
         self.storage = Storage(settings)
-        self.db = Database(
-            db_path=settings.db_path,
-            backend=settings.db_backend,
-            postgres_dsn=settings.postgres_dsn,
-        )
+        self.db = Database(postgres_dsn=settings.postgres_dsn)
         self.tasks = TaskManager(max_workers=settings.max_workers)
         self.pipeline = ProcessingPipeline(
             PipelineConfig(

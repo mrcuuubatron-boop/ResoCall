@@ -15,8 +15,6 @@ class Settings(BaseSettings):
     upload_dir: Path = Field(default=Path("./data/uploads"), alias="RESOCALL_UPLOAD_DIR")
     result_dir: Path = Field(default=Path("./data/results"), alias="RESOCALL_RESULT_DIR")
     log_dir: Path = Field(default=Path("./data/logs"), alias="RESOCALL_LOG_DIR")
-    db_path: Path = Field(default=Path("./data/resocall.db"), alias="RESOCALL_DB_PATH")
-    db_backend: str = Field(default="sqlite", alias="RESOCALL_DB_BACKEND")
     postgres_dsn: str = Field(
         default="postgresql://resocall:resocall@127.0.0.1:5432/resocall",
         alias="RESOCALL_POSTGRES_DSN",

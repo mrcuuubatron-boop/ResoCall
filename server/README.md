@@ -32,17 +32,12 @@ cp .env.example .env
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-## База данных (SQLite и PostgreSQL)
+## База данных (PostgreSQL)
 
-В сервере поддерживаются 2 backend-режима БД для SQL-запросов аутентификации:
+Сервер работает только с PostgreSQL для SQL-запросов аутентификации.
 
-- `sqlite` (по умолчанию): локальный файл `RESOCALL_DB_PATH`
-- `postgresql`: подключение по `RESOCALL_POSTGRES_DSN`
+Переменная подключения:
 
-Общие переменные:
-
-- `RESOCALL_DB_BACKEND=sqlite|postgresql`
-- `RESOCALL_DB_PATH=./data/resocall.db`
 - `RESOCALL_POSTGRES_DSN=postgresql://resocall:resocall@127.0.0.1:5432/resocall`
 
 Таблица пользователей:
@@ -50,6 +45,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 - `users(login, password, role)`
 
 Endpoint входа `POST /api/v1/auth/login` проверяет данные через SQL-запрос в выбранной БД.
+Endpoint входа `POST /api/v1/auth/login` проверяет данные через SQL-запрос в PostgreSQL.
 
 ### Подготовка PostgreSQL
 
@@ -68,7 +64,6 @@ docker compose up -d
 Далее в `.env`:
 
 ```bash
-RESOCALL_DB_BACKEND=postgresql
 RESOCALL_POSTGRES_DSN=postgresql://resocall:resocall@127.0.0.1:5432/resocall
 ```
 
@@ -80,9 +75,8 @@ curl http://127.0.0.1/api/v1/health
 
 В ответе должны быть поля:
 
-- `db_backend: sqlite|postgresql` - активный backend БД.
+- `db_backend: postgresql` - активный backend БД.
 - `database_ok: true` - SQL-запрос `SELECT 1` выполнился успешно.
-- `database_path` - путь к файлу SQLite БД.
 
 ## Примеры запросов
 
@@ -189,7 +183,6 @@ curl http://127.0.0.1/api/v1/health
 Ключевые поля в ответе:
 
 - `database_ok`: доступна ли БД и выполняется ли SQL-запрос.
-- `database_path`: путь к файлу SQLite.
 - `external_asr_enabled`: включен ли режим внешнего модуля.
 - `external_asr_status`: `active`, `disabled`, `unavailable`, `runtime_failed`.
 - `external_asr_error`: текст последней ошибки (если есть).

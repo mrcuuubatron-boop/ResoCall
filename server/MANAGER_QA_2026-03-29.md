@@ -12,7 +12,7 @@
 По моим задачам подтверждены артефакты:
 - Apache reverse proxy и deploy: `server/deploy/apache/resocall.conf`, `server/deploy/systemd/resocall.service`
 - Интеграция модулей ASR и health-диагностика: `server/app/services/audio_pipeline.py`, `server/app/routers/analysis.py`
-- База данных и SQL auth: `server/app/services/database.py`, `server/app/security.py`
+- База данных PostgreSQL и SQL auth: `server/app/services/database.py`, `server/app/security.py`
 - Подготовка PostgreSQL: `server/deploy/postgres/docker-compose.yml`, `server/deploy/postgres/init.sql`, `server/reports/POSTGRESQL_PREP_2026-03-29.md`
 
 ## 2) Разметка данных и аугментация/балансировка (задачи с прочерками)

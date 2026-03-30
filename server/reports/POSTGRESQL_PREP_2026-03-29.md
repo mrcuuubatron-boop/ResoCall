@@ -8,24 +8,22 @@ Owner: Dudenkov S.
 - `server/deploy/postgres/docker-compose.yml`
 - `server/deploy/postgres/init.sql`
 
-2. Added backend DB backend switch:
-- `RESOCALL_DB_BACKEND=sqlite|postgresql`
+2. Added backend PostgreSQL connection settings:
 - `RESOCALL_POSTGRES_DSN=...`
 
-3. Extended DB service to support PostgreSQL and SQLite:
+3. Implemented PostgreSQL-only DB service:
 - `server/app/services/database.py`
 
 4. Wired backend settings to DB service:
 - `server/app/dependencies.py`
 
-5. Added diagnostics in health endpoint:
-- `db_backend`
+4. Added diagnostics in health endpoint:
+- `db_backend=postgresql`
 - `database_ok`
 
 ## Verification checklist
 - [x] SQL schema for users prepared in PostgreSQL init script
-- [x] App can run in SQLite mode
-- [x] App has PostgreSQL mode configuration
+- [x] App runs with PostgreSQL only
 - [x] Health endpoint exposes active DB backend and ping status
 
 ## Run guide
@@ -35,6 +33,5 @@ docker compose up -d
 ```
 Set in `.env`:
 ```bash
-RESOCALL_DB_BACKEND=postgresql
 RESOCALL_POSTGRES_DSN=postgresql://resocall:resocall@127.0.0.1:5432/resocall
 ```
