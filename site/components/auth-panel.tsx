@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Phone } from "lucide-react"
 
 interface AuthPanelProps {
@@ -15,14 +14,13 @@ interface AuthPanelProps {
 export function AuthPanel({ onLogin }: AuthPanelProps) {
   const [login, setLogin] = useState("")
   const [password, setPassword] = useState("")
-  const [role, setRole] = useState<string>("operator")
   const [error, setError] = useState("")
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
 
-    // Проверка учетных данных
+    // Проверка учетных данных - роль определяется автоматически по логину
     const validCredentials: Record<string, { password: string; role: string }> = {
       user: { password: "user", role: "operator" },
       analyst: { password: "analyst", role: "analyst" },
@@ -76,20 +74,6 @@ export function AuthPanel({ onLogin }: AuthPanelProps) {
                 onChange={(e) => setPassword(e.target.value)}
                 required
               />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="role">Роль</Label>
-              <Select value={role} onValueChange={setRole}>
-                <SelectTrigger id="role">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="operator">Сотрудник Call-центра</SelectItem>
-                  <SelectItem value="analyst">Аналитик</SelectItem>
-                  <SelectItem value="admin">Администратор</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
 
             {error && (
