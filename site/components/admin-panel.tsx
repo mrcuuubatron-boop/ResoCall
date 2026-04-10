@@ -6,14 +6,21 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Switch } from "@/components/ui/switch"
-import { Label } from "@/components/ui/label"
-import { Play, Pause, RotateCcw, Square, Activity, Clock, CheckCircle, XCircle, AlertTriangle } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Play, Pause, RotateCcw, Square, Activity, Clock, CheckCircle, XCircle, AlertTriangle, Settings } from "lucide-react"
 
 interface LogEntry {
   id: string
   timestamp: string
   level: "info" | "warning" | "error" | "success"
+  message: string
+}
+
+interface RunError {
+  id: string
+  audioPath: string
+  errorType: string
   message: string
 }
 
@@ -24,6 +31,14 @@ interface RunHistory {
   status: "completed" | "failed" | "stopped"
   processed: number
   errors: number
+  errorList: RunError[]
+}
+
+interface ErrorStatItem {
+  type: string
+  count: number
+  percentage: number
+  audioFiles: { id: string; path: string; timestamp: string }[]
 }
 
 const currentLogs: LogEntry[] = [
@@ -40,18 +55,129 @@ const currentLogs: LogEntry[] = [
 ]
 
 const runHistory: RunHistory[] = [
-  { id: "1", startTime: "2026-03-20 10:00:00", endTime: "2026-03-20 14:30:15", status: "completed", processed: 342, errors: 3 },
-  { id: "2", startTime: "2026-03-19 09:00:00", endTime: "2026-03-19 15:22:43", status: "completed", processed: 398, errors: 5 },
-  { id: "3", startTime: "2026-03-18 08:30:00", endTime: "2026-03-18 12:15:00", status: "stopped", processed: 156, errors: 2 },
-  { id: "4", startTime: "2026-03-17 10:00:00", endTime: "2026-03-17 14:45:21", status: "completed", processed: 421, errors: 7 },
-  { id: "5", startTime: "2026-03-16 09:15:00", endTime: "2026-03-16 11:30:00", status: "failed", processed: 89, errors: 45 },
+  { 
+    id: "1", 
+    startTime: "2026-03-20 10:00:00", 
+    endTime: "2026-03-20 14:30:15", 
+    status: "completed", 
+    processed: 342, 
+    errors: 3,
+    errorList: [
+      { id: "e1", audioPath: "/audio/2026-03-20/call_8235.mp3", errorType: "ASR Timeout", message: "Превышено время ожидания транскрипции" },
+      { id: "e2", audioPath: "/audio/2026-03-20/call_8267.mp3", errorType: "Low Audio Quality", message: "Низкое качество аудио, невозможно распознать речь" },
+      { id: "e3", audioPath: "/audio/2026-03-20/call_8301.mp3", errorType: "Processing Error", message: "Ошибка обработки данных" },
+    ]
+  },
+  { 
+    id: "2", 
+    startTime: "2026-03-19 09:00:00", 
+    endTime: "2026-03-19 15:22:43", 
+    status: "completed", 
+    processed: 398, 
+    errors: 5,
+    errorList: [
+      { id: "e4", audioPath: "/audio/2026-03-19/call_7892.mp3", errorType: "ASR Timeout", message: "Превышено время ожидания" },
+      { id: "e5", audioPath: "/audio/2026-03-19/call_7901.mp3", errorType: "Network Error", message: "Ошибка сети" },
+      { id: "e6", audioPath: "/audio/2026-03-19/call_7945.mp3", errorType: "Low Audio Quality", message: "Низкое качество записи" },
+      { id: "e7", audioPath: "/audio/2026-03-19/call_7980.mp3", errorType: "Low Audio Quality", message: "Шум на записи" },
+      { id: "e8", audioPath: "/audio/2026-03-19/call_8012.mp3", errorType: "Processing Error", message: "Внутренняя ошибка" },
+    ]
+  },
+  { 
+    id: "3", 
+    startTime: "2026-03-18 08:30:00", 
+    endTime: "2026-03-18 12:15:00", 
+    status: "stopped", 
+    processed: 156, 
+    errors: 2,
+    errorList: [
+      { id: "e9", audioPath: "/audio/2026-03-18/call_7501.mp3", errorType: "ASR Timeout", message: "Timeout" },
+      { id: "e10", audioPath: "/audio/2026-03-18/call_7534.mp3", errorType: "Network Error", message: "Потеря соединения" },
+    ]
+  },
+  { 
+    id: "4", 
+    startTime: "2026-03-17 10:00:00", 
+    endTime: "2026-03-17 14:45:21", 
+    status: "completed", 
+    processed: 421, 
+    errors: 7,
+    errorList: [
+      { id: "e11", audioPath: "/audio/2026-03-17/call_7102.mp3", errorType: "ASR Timeout", message: "Timeout exceeded" },
+      { id: "e12", audioPath: "/audio/2026-03-17/call_7156.mp3", errorType: "Low Audio Quality", message: "Плохое качество" },
+      { id: "e13", audioPath: "/audio/2026-03-17/call_7189.mp3", errorType: "Low Audio Quality", message: "Помехи" },
+      { id: "e14", audioPath: "/audio/2026-03-17/call_7234.mp3", errorType: "Network Error", message: "Ошибка сети" },
+      { id: "e15", audioPath: "/audio/2026-03-17/call_7267.mp3", errorType: "Processing Error", message: "Ошибка парсинга" },
+      { id: "e16", audioPath: "/audio/2026-03-17/call_7301.mp3", errorType: "Processing Error", message: "Ошибка модели" },
+      { id: "e17", audioPath: "/audio/2026-03-17/call_7345.mp3", errorType: "ASR Timeout", message: "Timeout" },
+    ]
+  },
+  { 
+    id: "5", 
+    startTime: "2026-03-16 09:15:00", 
+    endTime: "2026-03-16 11:30:00", 
+    status: "failed", 
+    processed: 89, 
+    errors: 45,
+    errorList: Array.from({ length: 45 }, (_, i) => ({
+      id: `e${18 + i}`,
+      audioPath: `/audio/2026-03-16/call_${6500 + i}.mp3`,
+      errorType: ["ASR Timeout", "Low Audio Quality", "Network Error", "Processing Error"][i % 4],
+      message: "Массовый сбой системы"
+    }))
+  },
 ]
 
-const errorStats = [
-  { type: "ASR Timeout", count: 12, percentage: 25 },
-  { type: "Low Audio Quality", count: 18, percentage: 37 },
-  { type: "Network Error", count: 8, percentage: 17 },
-  { type: "Processing Error", count: 10, percentage: 21 },
+const errorStats: ErrorStatItem[] = [
+  { 
+    type: "ASR Timeout", 
+    count: 12, 
+    percentage: 25,
+    audioFiles: [
+      { id: "1", path: "/audio/2026-03-20/call_8235.mp3", timestamp: "2026-03-20 10:15:23" },
+      { id: "2", path: "/audio/2026-03-19/call_7892.mp3", timestamp: "2026-03-19 09:45:12" },
+      { id: "3", path: "/audio/2026-03-18/call_7501.mp3", timestamp: "2026-03-18 08:52:34" },
+      { id: "4", path: "/audio/2026-03-17/call_7102.mp3", timestamp: "2026-03-17 10:23:45" },
+      { id: "5", path: "/audio/2026-03-17/call_7345.mp3", timestamp: "2026-03-17 14:12:33" },
+      { id: "6", path: "/audio/2026-03-16/call_6500.mp3", timestamp: "2026-03-16 09:20:11" },
+      { id: "7", path: "/audio/2026-03-16/call_6504.mp3", timestamp: "2026-03-16 09:35:22" },
+      { id: "8", path: "/audio/2026-03-16/call_6508.mp3", timestamp: "2026-03-16 09:48:55" },
+      { id: "9", path: "/audio/2026-03-16/call_6512.mp3", timestamp: "2026-03-16 10:01:43" },
+      { id: "10", path: "/audio/2026-03-16/call_6516.mp3", timestamp: "2026-03-16 10:15:32" },
+      { id: "11", path: "/audio/2026-03-16/call_6520.mp3", timestamp: "2026-03-16 10:28:21" },
+      { id: "12", path: "/audio/2026-03-16/call_6524.mp3", timestamp: "2026-03-16 10:41:10" },
+    ]
+  },
+  { 
+    type: "Low Audio Quality", 
+    count: 18, 
+    percentage: 37,
+    audioFiles: Array.from({ length: 18 }, (_, i) => ({
+      id: String(i + 1),
+      path: `/audio/low_quality/call_${7000 + i * 10}.mp3`,
+      timestamp: `2026-03-${15 + (i % 5)} ${9 + (i % 8)}:${String((i * 7) % 60).padStart(2, '0')}:00`
+    }))
+  },
+  { 
+    type: "Network Error", 
+    count: 8, 
+    percentage: 17,
+    audioFiles: Array.from({ length: 8 }, (_, i) => ({
+      id: String(i + 1),
+      path: `/audio/network_error/call_${8000 + i * 15}.mp3`,
+      timestamp: `2026-03-${16 + (i % 4)} ${10 + (i % 6)}:${String((i * 11) % 60).padStart(2, '0')}:00`
+    }))
+  },
+  { 
+    type: "Processing Error", 
+    count: 10, 
+    percentage: 21,
+    audioFiles: Array.from({ length: 10 }, (_, i) => ({
+      id: String(i + 1),
+      path: `/audio/processing_error/call_${9000 + i * 12}.mp3`,
+      timestamp: `2026-03-${17 + (i % 3)} ${11 + (i % 5)}:${String((i * 9) % 60).padStart(2, '0')}:00`
+    }))
+  },
 ]
 
 interface AdminPanelProps {
@@ -61,8 +187,11 @@ interface AdminPanelProps {
 export function AdminPanel({ onLogout }: AdminPanelProps) {
   const [isRunning, setIsRunning] = useState(true)
   const [isPaused, setIsPaused] = useState(false)
-  const [autoRestart, setAutoRestart] = useState(true)
-  const [enableNotifications, setEnableNotifications] = useState(true)
+  
+  // Модальные окна
+  const [selectedRunErrors, setSelectedRunErrors] = useState<RunHistory | null>(null)
+  const [selectedErrorType, setSelectedErrorType] = useState<ErrorStatItem | null>(null)
+  const [showSettings, setShowSettings] = useState(false)
 
   const handleStart = () => {
     setIsRunning(true)
@@ -174,29 +303,14 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
                 <RotateCcw className="w-4 h-4 mr-2" />
                 Перезапуск
               </Button>
-            </div>
-
-            <div className="border-t pt-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="auto-restart" className="cursor-pointer">
-                  Автоматический перезапуск при ошибках
-                </Label>
-                <Switch
-                  id="auto-restart"
-                  checked={autoRestart}
-                  onCheckedChange={setAutoRestart}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <Label htmlFor="notifications" className="cursor-pointer">
-                  Уведомления об ошибках
-                </Label>
-                <Switch
-                  id="notifications"
-                  checked={enableNotifications}
-                  onCheckedChange={setEnableNotifications}
-                />
-              </div>
+              <Button 
+                onClick={() => setShowSettings(true)}
+                variant="outline"
+                size="sm"
+              >
+                <Settings className="w-4 h-4 mr-2" />
+                Настройки
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -307,7 +421,12 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
                         </div>
                         <div>
                           <p className="text-neutral-500">Ошибок</p>
-                          <p className="font-medium text-red-600">{run.errors}</p>
+                          <button 
+                            className="font-medium text-red-600 hover:underline cursor-pointer"
+                            onClick={() => setSelectedRunErrors(run)}
+                          >
+                            {run.errors}
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -327,7 +446,12 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
                   {errorStats.map((stat, index) => (
                     <div key={index} className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">{stat.type}</span>
+                        <button 
+                          className="text-sm font-medium text-blue-600 hover:underline cursor-pointer"
+                          onClick={() => setSelectedErrorType(stat)}
+                        >
+                          {stat.type}
+                        </button>
                         <div className="flex items-center gap-2">
                           <span className="text-sm text-neutral-500">{stat.count} случаев</span>
                           <Badge variant="outline">{stat.percentage}%</Badge>
@@ -355,6 +479,97 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Модальное окно: Ошибки запуска */}
+      <Dialog open={!!selectedRunErrors} onOpenChange={() => setSelectedRunErrors(null)}>
+        <DialogContent className="w-[80vw] max-w-[80vw] h-[80vh] max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Ошибки запуска #{selectedRunErrors?.id}</DialogTitle>
+          </DialogHeader>
+          {selectedRunErrors && (
+            <div className="flex-1 flex flex-col min-h-0">
+              <div className="mb-4 p-4 bg-neutral-50 rounded-lg">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-neutral-500">Время запуска:</span>
+                    <span className="ml-2 font-medium">{selectedRunErrors.startTime}</span>
+                  </div>
+                  <div>
+                    <span className="text-neutral-500">Всего ошибок:</span>
+                    <span className="ml-2 font-medium text-red-600">{selectedRunErrors.errors}</span>
+                  </div>
+                </div>
+              </div>
+              <ScrollArea className="flex-1">
+                <div className="space-y-3 pr-4">
+                  {selectedRunErrors.errorList.map((error) => (
+                    <div key={error.id} className="border rounded-lg p-4">
+                      <div className="flex items-start justify-between mb-2">
+                        <Badge variant="outline" className="text-red-600 border-red-200">
+                          {error.errorType}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-neutral-600 mb-2">{error.message}</p>
+                      <div className="flex items-center gap-2 p-2 bg-neutral-100 rounded text-sm">
+                        <span className="text-neutral-500">Аудио:</span>
+                        <code className="text-blue-600">{error.audioPath}</code>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Модальное окно: Ошибки по типу */}
+      <Dialog open={!!selectedErrorType} onOpenChange={() => setSelectedErrorType(null)}>
+        <DialogContent className="w-[80vw] max-w-[80vw] h-[80vh] max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Ошибки: {selectedErrorType?.type}</DialogTitle>
+          </DialogHeader>
+          {selectedErrorType && (
+            <div className="flex-1 flex flex-col min-h-0">
+              <div className="mb-4 p-4 bg-neutral-50 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <span className="text-neutral-500">Всего случаев:</span>
+                  <span className="font-medium text-red-600">{selectedErrorType.count}</span>
+                </div>
+              </div>
+              <ScrollArea className="flex-1">
+                <div className="space-y-2 pr-4">
+                  {selectedErrorType.audioFiles.map((file) => (
+                    <div key={file.id} className="border rounded-lg p-3 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <AlertTriangle className="w-4 h-4 text-red-500" />
+                        <code className="text-sm text-blue-600">{file.path}</code>
+                      </div>
+                      <span className="text-xs text-neutral-500">{file.timestamp}</span>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Модальное окно: Настройки */}
+      <Dialog open={showSettings} onOpenChange={setShowSettings}>
+        <DialogContent className="w-[80vw] max-w-[80vw] h-[80vh] max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Настройки нейросети</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 flex flex-col">
+            <div className="p-8 text-center text-neutral-500">
+              <Settings className="w-16 h-16 mx-auto mb-4 text-neutral-300" />
+              <p className="text-lg font-medium mb-2">Настройки будут доступны позже</p>
+              <p className="text-sm">Функционал настроек будет реализован совместно с командой бэкенда.</p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   )
 }

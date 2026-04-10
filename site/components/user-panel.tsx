@@ -6,18 +6,27 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Search, Clock, Calendar } from "lucide-react"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Search, Clock, Calendar, Play, CalendarIcon } from "lucide-react"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Calendar as CalendarComponent } from "@/components/ui/calendar"
+import { format } from "date-fns"
+import { ru } from "date-fns/locale"
+import { DateRange } from "react-day-picker"
+
+interface Message {
+  speaker: 'operator' | 'client'
+  text: string
+}
 
 interface Call {
   id: string
   clientName: string
   date: string
   duration: string
-  sentiment: "positive" | "neutral" | "negative"
-  transcript: string
-  category: string
+  transcript: Message[]
+  audioUrl: string
 }
 
 const mockCalls: Call[] = [
@@ -26,45 +35,70 @@ const mockCalls: Call[] = [
     clientName: "Иванов Иван",
     date: "2026-03-20 10:30",
     duration: "5:23",
-    sentiment: "positive",
-    transcript: "Оператор: Добрый день! Меня зовут Анна. Чем могу помочь?\nКлиент: Здравствуйте! Хочу узнать о новых тарифах.\nОператор: С удовольствием расскажу! У нас есть несколько выгодных предложений...\nКлиент: Отлично, расскажите подробнее.\nОператор: Конечно! Первый тариф включает безлимитные звонки...",
-    category: "Консультация"
+    transcript: [
+      { speaker: 'operator', text: "Добрый день! Меня зовут Анна. Чем могу помочь?" },
+      { speaker: 'client', text: "Здравствуйте! Хочу узнать о новых тарифах." },
+      { speaker: 'operator', text: "С удовольствием расскажу! У нас есть несколько выгодных предложений..." },
+      { speaker: 'client', text: "Отлично, расскажите подробнее." },
+      { speaker: 'operator', text: "Конечно! Первый тариф включает безлимитные звонки..." },
+    ],
+    audioUrl: "/audio/call_001.mp3"
   },
   {
     id: "2",
     clientName: "Петрова Мария",
     date: "2026-03-20 09:15",
     duration: "8:45",
-    sentiment: "negative",
-    transcript: "Оператор: Добрый день! Меня зовут Анна. Чем могу помочь?\nКлиент: У меня проблема с оплатой, уже третий день не могу оплатить счет!\nОператор: Понимаю ваше беспокойство. Давайте разберемся...\nКлиент: Я уже звонил вчера, мне обещали перезвонить!\nОператор: Приношу извинения за задержку. Сейчас проверю статус вашего обращения...",
-    category: "Проблемы с оплатой"
+    transcript: [
+      { speaker: 'operator', text: "Добрый день! Меня зовут Анна. Чем могу помочь?" },
+      { speaker: 'client', text: "У меня проблема с оплатой, уже третий день не могу оплатить счет!" },
+      { speaker: 'operator', text: "Понимаю ваше беспокойство. Давайте разберемся..." },
+      { speaker: 'client', text: "Я уже звонил вчера, мне обещали перезвонить!" },
+      { speaker: 'operator', text: "Приношу извинения за задержку. Сейчас проверю статус вашего обращения..." },
+    ],
+    audioUrl: "/audio/call_002.mp3"
   },
   {
     id: "3",
     clientName: "Сидоров Петр",
     date: "2026-03-19 16:20",
     duration: "3:12",
-    sentiment: "neutral",
-    transcript: "Оператор: Добрый день! Меня зовут Анна. Чем могу помочь?\nКлиент: Добрый день, подскажите режим работы вашего офиса.\nОператор: Конечно! Наш офис работает с понедельника по пятницу с 9:00 до 18:00.\nКлиент: А в субботу?\nОператор: В субботу мы работаем с 10:00 до 15:00.",
-    category: "Общая информация"
+    transcript: [
+      { speaker: 'operator', text: "Добрый день! Меня зовут Анна. Чем могу помочь?" },
+      { speaker: 'client', text: "Добрый день, подскажите режим работы вашего офиса." },
+      { speaker: 'operator', text: "Конечно! Наш офис работает с понедельника по пятницу с 9:00 до 18:00." },
+      { speaker: 'client', text: "А в субботу?" },
+      { speaker: 'operator', text: "В субботу мы работаем с 10:00 до 15:00." },
+    ],
+    audioUrl: "/audio/call_003.mp3"
   },
   {
     id: "4",
     clientName: "Ковалев Александр",
     date: "2026-03-19 14:05",
     duration: "12:30",
-    sentiment: "negative",
-    transcript: "Оператор: Добрый день! Меня зовут Анна. Чем могу помочь?\nКлиент: У меня серьезная техническая проблема, интернет не работает уже 2 дня!\nОператор: Очень извиняюсь за неудобства. Давайте срочно разберемся...\nКлиент: Я работаю из дома, мне срочно нужен интернет!\nОператор: Понимаю критичность ситуации. Сейчас создам заявку с высоким приоритетом...",
-    category: "Техническая неисправность"
+    transcript: [
+      { speaker: 'operator', text: "Добрый день! Меня зовут Анна. Чем могу помочь?" },
+      { speaker: 'client', text: "У меня серьезная техническая проблема, интернет не работает уже 2 дня!" },
+      { speaker: 'operator', text: "Очень извиняюсь за неудобства. Давайте срочно разберемся..." },
+      { speaker: 'client', text: "Я работаю из дома, мне срочно нужен интернет!" },
+      { speaker: 'operator', text: "Понимаю критичность ситуации. Сейчас создам заявку с высоким приоритетом..." },
+    ],
+    audioUrl: "/audio/call_004.mp3"
   },
   {
     id: "5",
     clientName: "Новикова Елена",
     date: "2026-03-18 11:45",
     duration: "6:18",
-    sentiment: "positive",
-    transcript: "Оператор: Добрый день! Меня зовут Анна. Чем могу помочь?\nКлиент: Здравствуйте! Хочу поблагодарить вашу компанию за быстрое решение моей проблемы!\nОператор: Спасибо за ваш отзыв! Мы рады, что смогли помочь.\nКлиент: Техник приехал вовремя и все починил за час.\nОператор: Передам благодарность нашей технической службе!",
-    category: "Благодарность"
+    transcript: [
+      { speaker: 'operator', text: "Добрый день! Меня зовут Анна. Чем могу помочь?" },
+      { speaker: 'client', text: "Здравствуйте! Хочу поблагодарить вашу компанию за быстрое решение моей проблемы!" },
+      { speaker: 'operator', text: "Спасибо за ваш отзыв! Мы рады, что смогли помочь." },
+      { speaker: 'client', text: "Техник приехал вовремя и все починил за час." },
+      { speaker: 'operator', text: "Передам благодарность нашей технической службе!" },
+    ],
+    audioUrl: "/audio/call_005.mp3"
   },
 ]
 
@@ -75,9 +109,10 @@ interface UserPanelProps {
 export function UserPanel({ onLogout }: UserPanelProps) {
   const [calls, setCalls] = useState<Call[]>(mockCalls)
   const [searchQuery, setSearchQuery] = useState("")
-  const [sortBy, setSortBy] = useState<string>("date")
+  const [sortBy, setSortBy] = useState<string>("duration")
   const [selectedCall, setSelectedCall] = useState<Call | null>(null)
   const [searchInDialog, setSearchInDialog] = useState("")
+  const [dateRange, setDateRange] = useState<DateRange | undefined>()
 
   const handleSort = (value: string) => {
     setSortBy(value)
@@ -96,32 +131,23 @@ export function UserPanel({ onLogout }: UserPanelProps) {
     setCalls(sorted)
   }
 
-  const filteredCalls = calls.filter(call =>
-    call.clientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    call.category.toLowerCase().includes(searchQuery.toLowerCase())
-  )
-
-  const getSentimentColor = (sentiment: string) => {
-    switch (sentiment) {
-      case "positive":
-        return "bg-green-100 text-green-800 border-green-200"
-      case "negative":
-        return "bg-red-100 text-red-800 border-red-200"
-      default:
-        return "bg-neutral-100 text-neutral-800 border-neutral-200"
+  const filteredCalls = calls.filter(call => {
+    // Filter by client name
+    const matchesSearch = call.clientName.toLowerCase().includes(searchQuery.toLowerCase())
+    
+    // Filter by date range
+    let matchesDate = true
+    if (dateRange?.from) {
+      const callDate = new Date(call.date)
+      const startDate = new Date(dateRange.from)
+      startDate.setHours(0, 0, 0, 0)
+      const endDate = dateRange.to ? new Date(dateRange.to) : new Date(dateRange.from)
+      endDate.setHours(23, 59, 59, 999)
+      matchesDate = callDate >= startDate && callDate <= endDate
     }
-  }
-
-  const getSentimentLabel = (sentiment: string) => {
-    switch (sentiment) {
-      case "positive":
-        return "Позитивный"
-      case "negative":
-        return "Негативный"
-      default:
-        return "Нейтральный"
-    }
-  }
+    
+    return matchesSearch && matchesDate
+  })
 
   const highlightText = (text: string, query: string) => {
     if (!query) return text
@@ -143,18 +169,52 @@ export function UserPanel({ onLogout }: UserPanelProps) {
               <div className="flex-1 relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-400 w-4 h-4" />
                 <Input
-                  placeholder="Поиск по имени клиента или категории..."
+                  placeholder="Поиск по имени клиента..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10"
                 />
               </div>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full sm:w-auto min-w-[200px] justify-start text-left">
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {dateRange?.from ? (
+                      dateRange.to ? (
+                        <>
+                          {format(dateRange.from, "dd.MM.yyyy", { locale: ru })} -{" "}
+                          {format(dateRange.to, "dd.MM.yyyy", { locale: ru })}
+                        </>
+                      ) : (
+                        format(dateRange.from, "dd.MM.yyyy", { locale: ru })
+                      )
+                    ) : (
+                      "Выберите дату"
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    initialFocus
+                    mode="range"
+                    defaultMonth={dateRange?.from}
+                    selected={dateRange}
+                    onSelect={setDateRange}
+                    numberOfMonths={2}
+                    locale={ru}
+                  />
+                </PopoverContent>
+              </Popover>
+              {dateRange && (
+                <Button variant="ghost" size="sm" onClick={() => setDateRange(undefined)}>
+                  Сбросить дату
+                </Button>
+              )}
               <Select value={sortBy} onValueChange={handleSort}>
                 <SelectTrigger className="w-full sm:w-48">
                   <SelectValue placeholder="Сортировка" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="date">По дате</SelectItem>
                   <SelectItem value="duration">По длительности</SelectItem>
                   <SelectItem value="client">По имени клиента</SelectItem>
                 </SelectContent>
@@ -174,13 +234,7 @@ export function UserPanel({ onLogout }: UserPanelProps) {
               <CardContent className="pt-6">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="space-y-2 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-medium">{call.clientName}</h3>
-                      <Badge variant="outline" className={getSentimentColor(call.sentiment)}>
-                        {getSentimentLabel(call.sentiment)}
-                      </Badge>
-                      <Badge variant="outline">{call.category}</Badge>
-                    </div>
+                    <h3 className="font-medium">{call.clientName}</h3>
                     <div className="flex flex-wrap gap-4 text-sm text-neutral-500">
                       <div className="flex items-center gap-1">
                         <Calendar className="w-4 h-4" />
@@ -210,22 +264,18 @@ export function UserPanel({ onLogout }: UserPanelProps) {
         )}
       </div>
 
-      {/* Диалог с деталями звонка */}
+      {/* Диалог с деталями звонка - 80% размера страницы */}
       <Dialog open={!!selectedCall} onOpenChange={() => setSelectedCall(null)}>
-        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="w-[80vw] max-w-[80vw] h-[80vh] max-h-[80vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>Детали звонка</DialogTitle>
           </DialogHeader>
           {selectedCall && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+            <div className="flex-1 flex flex-col space-y-4 overflow-hidden">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <p className="text-sm text-neutral-500">Клиент</p>
                   <p className="font-medium">{selectedCall.clientName}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-neutral-500">Категория</p>
-                  <p className="font-medium">{selectedCall.category}</p>
                 </div>
                 <div>
                   <p className="text-sm text-neutral-500">Дата и время</p>
@@ -235,11 +285,14 @@ export function UserPanel({ onLogout }: UserPanelProps) {
                   <p className="text-sm text-neutral-500">Длительность</p>
                   <p className="font-medium">{selectedCall.duration}</p>
                 </div>
-                <div>
-                  <p className="text-sm text-neutral-500">Настроение</p>
-                  <Badge className={getSentimentColor(selectedCall.sentiment)}>
-                    {getSentimentLabel(selectedCall.sentiment)}
-                  </Badge>
+              </div>
+
+              {/* Аудио файл */}
+              <div>
+                <p className="text-sm text-neutral-500 mb-2">Аудиозапись</p>
+                <div className="flex items-center gap-2 p-3 bg-neutral-100 rounded-lg">
+                  <Play className="w-5 h-5 text-neutral-600" />
+                  <span className="text-sm text-neutral-600">{selectedCall.audioUrl}</span>
                 </div>
               </div>
 
@@ -252,11 +305,30 @@ export function UserPanel({ onLogout }: UserPanelProps) {
                 />
               </div>
 
-              <div>
-                <p className="text-sm text-neutral-500 mb-2">Транскрипт разговора</p>
-                <div className="bg-neutral-50 p-4 rounded-lg whitespace-pre-line text-sm">
-                  {highlightText(selectedCall.transcript, searchInDialog)}
-                </div>
+              {/* Транскрипт в стиле аналитика */}
+              <div className="flex-1 flex flex-col min-h-0">
+                <p className="text-sm text-neutral-500 mb-2">Текст диалога:</p>
+                <ScrollArea className="flex-1 border rounded-lg p-4">
+                  <div className="space-y-3">
+                    {selectedCall.transcript.map((message, index) => (
+                      <div
+                        key={index}
+                        className={`p-3 rounded-lg ${
+                          message.speaker === 'operator'
+                            ? 'bg-blue-50 ml-0 mr-8'
+                            : 'bg-neutral-100 ml-8 mr-0'
+                        }`}
+                      >
+                        <p className="text-xs font-medium text-neutral-500 mb-1">
+                          {message.speaker === 'operator' ? 'Оператор' : 'Клиент'}
+                        </p>
+                        <p className="text-sm">
+                          {highlightText(message.text, searchInDialog)}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
               </div>
             </div>
           )}
