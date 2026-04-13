@@ -8,8 +8,17 @@
 # sudo dnf install -y nodejs npm
 # sudo npm install -g pnpm
 #
+# Install commands (Debian/Ubuntu):
+# sudo apt update
+# sudo apt install -y nodejs npm
+# sudo npm install -g pnpm
+#
+# Install commands (Windows):
+# Download and install Node.js from https://nodejs.org/
+# Then run: npm install -g pnpm
+#
 # Install frontend deps (from package.json):
-# Run inside the `site/` folder:
+# Run inside the project folder:
 # pnpm install
 #
 # Main libraries used by the frontend (manage via package.json):
