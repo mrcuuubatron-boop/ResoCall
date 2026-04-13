@@ -17,6 +17,8 @@
 - `GET /api/v1/tasks` - список задач.
 - `GET /api/v1/tasks/{task_id}` - статус задачи.
 - `GET /api/v1/results/{task_id}` - результат анализа.
+- `GET /api/v1/modules/{module_key}/settings` - получить сохраненные настройки модуля для текущего пользователя.
+- `PUT /api/v1/modules/{module_key}/settings` - сохранить настройки модуля для текущего пользователя.
 - `GET /api/v1/health` - проверка состояния сервиса.
 
 Swagger UI доступен по адресу `/docs`.
@@ -32,15 +34,40 @@ cp .env.example .env
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-## База данных (SQLite)
+## База данных (PostgreSQL)
 
-В сервер добавлена локальная SQLite БД для аутентификации и выполнения SQL-запросов.
+Сервер работает только с PostgreSQL для SQL-запросов аутентификации.
 
-- Путь к БД: `RESOCALL_DB_PATH` (по умолчанию `./data/resocall.db`)
-- Таблица: `users(login, password, role)`
-- Демо-пользователи создаются автоматически при старте сервера.
+Переменная подключения:
 
-Теперь endpoint входа `POST /api/v1/auth/login` проверяет данные через SQL-запрос в SQLite.
+- `RESOCALL_POSTGRES_DSN=postgresql://resocall:resocall@127.0.0.1:5432/resocall`
+
+Таблица пользователей:
+
+- `users(login, password, role)`
+
+Endpoint входа `POST /api/v1/auth/login` проверяет данные через SQL-запрос в выбранной БД.
+Endpoint входа `POST /api/v1/auth/login` проверяет данные через SQL-запрос в PostgreSQL.
+
+### Подготовка PostgreSQL
+
+Готовые артефакты:
+
+- `deploy/postgres/docker-compose.yml`
+- `deploy/postgres/init.sql`
+
+Запуск локального PostgreSQL:
+
+```bash
+cd server/deploy/postgres
+docker compose up -d
+```
+
+Далее в `.env`:
+
+```bash
+RESOCALL_POSTGRES_DSN=postgresql://resocall:resocall@127.0.0.1:5432/resocall
+```
 
 Проверка состояния БД через health:
 
@@ -50,8 +77,8 @@ curl http://127.0.0.1/api/v1/health
 
 В ответе должны быть поля:
 
+- `db_backend: postgresql` - активный backend БД.
 - `database_ok: true` - SQL-запрос `SELECT 1` выполнился успешно.
-- `database_path` - путь к файлу SQLite БД.
 
 ## Примеры запросов
 
@@ -89,6 +116,17 @@ curl -X POST "http://localhost:8000/api/v1/analysis/upload-and-analyze" \
 ```bash
 curl -H "x-login: engineer" -H "x-password: engineer" "http://localhost:8000/api/v1/tasks/<task_id>"
 curl -H "x-login: engineer" -H "x-password: engineer" "http://localhost:8000/api/v1/results/<task_id>"
+
+Настройки модулей (пример для модуля `engineer`):
+
+```bash
+curl -H "x-login: engineer" -H "x-password: engineer" "http://localhost:8000/api/v1/modules/engineer/settings"
+curl -X PUT "http://localhost:8000/api/v1/modules/engineer/settings" \
+  -H "Content-Type: application/json" \
+  -H "x-login: engineer" \
+  -H "x-password: engineer" \
+  -d '{"settings":{"period":"week","sortBy":"date"}}'
+```
 ```
 
 ## Подключение через Apache (Reverse Proxy)
@@ -158,7 +196,6 @@ curl http://127.0.0.1/api/v1/health
 Ключевые поля в ответе:
 
 - `database_ok`: доступна ли БД и выполняется ли SQL-запрос.
-- `database_path`: путь к файлу SQLite.
 - `external_asr_enabled`: включен ли режим внешнего модуля.
 - `external_asr_status`: `active`, `disabled`, `unavailable`, `runtime_failed`.
 - `external_asr_error`: текст последней ошибки (если есть).
