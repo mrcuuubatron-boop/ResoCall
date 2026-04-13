@@ -5,6 +5,7 @@ from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 from app.dependencies import build_context
 from app.routers.analysis import router as analysis_router
 from app.routers.auth import router as auth_router
+from app.routers.module_settings import router as module_settings_router
 
 
 def create_app() -> FastAPI:
@@ -28,6 +29,7 @@ def create_app() -> FastAPI:
 
     app.include_router(auth_router)
     app.include_router(analysis_router)
+    app.include_router(module_settings_router)
     return app
 
 

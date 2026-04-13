@@ -5,27 +5,30 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
 interface AuthPanelProps {
-  onLogin: (role: string) => void
+  onLogin: (login: string, password: string) => Promise<void>
 }
 
 export function AuthPanel({ onLogin }: AuthPanelProps) {
   const [login, setLogin] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
+    setIsSubmitting(true)
 
-    // Проверка логина и пароля
-    if (login === "admin" && password === "admin") {
-      onLogin("admin")
-    } else if (login === "engineer" && password === "engineer") {
-      onLogin("engineer")
-    } else if (login === "user" && password === "user") {
-      onLogin("user")
-    } else {
-      setError("Неверный логин или пароль")
+    try {
+      await onLogin(login, password)
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message)
+      } else {
+        setError("Неверный логин или пароль")
+      }
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -57,9 +60,10 @@ export function AuthPanel({ onLogin }: AuthPanelProps) {
           )}
           <Button 
             type="submit" 
+            disabled={isSubmitting}
             className="w-full bg-zinc-600 hover:bg-zinc-500 text-white"
           >
-            Войти
+            {isSubmitting ? "Вход..." : "Войти"}
           </Button>
         </form>
         <div className="text-zinc-400 text-xs mt-4 text-center space-y-1">

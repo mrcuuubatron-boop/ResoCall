@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import {
@@ -11,9 +11,12 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { LogOut } from "lucide-react"
+import { loadModuleSettings, saveModuleSettings } from "@/lib/module-settings"
 
 interface UserPanelProps {
   onLogout: () => void
+  login: string
+  password: string
 }
 
 const mockCalls = [
@@ -105,11 +108,49 @@ function formatDuration(seconds: number): string {
   return `${mins}:${secs.toString().padStart(2, "0")}`
 }
 
-export function UserPanel({ onLogout }: UserPanelProps) {
+export function UserPanel({ onLogout, login, password }: UserPanelProps) {
   const [searchArchive, setSearchArchive] = useState("")
   const [searchDialog, setSearchDialog] = useState("")
   const [selectedCall, setSelectedCall] = useState<number | null>(1)
   const [sortBy, setSortBy] = useState<SortType>("date_desc")
+  const [isSettingsReady, setIsSettingsReady] = useState(false)
+
+  useEffect(() => {
+    let active = true
+    void loadModuleSettings("user", login, password)
+      .then((payload) => {
+        if (!active) {
+          return
+        }
+        const savedSortBy = payload.settings.sortBy
+        if (
+          savedSortBy === "date_desc" ||
+          savedSortBy === "date_asc" ||
+          savedSortBy === "duration_desc" ||
+          savedSortBy === "duration_asc" ||
+          savedSortBy === "name_asc" ||
+          savedSortBy === "name_desc"
+        ) {
+          setSortBy(savedSortBy)
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setIsSettingsReady(true)
+        }
+      })
+
+    return () => {
+      active = false
+    }
+  }, [login, password])
+
+  useEffect(() => {
+    if (!isSettingsReady) {
+      return
+    }
+    void saveModuleSettings("user", { sortBy }, login, password)
+  }, [sortBy, isSettingsReady, login, password])
 
   const filteredAndSortedCalls = useMemo(() => {
     let result = mockCalls.filter(

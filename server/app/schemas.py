@@ -83,3 +83,13 @@ class UserContext(BaseModel):
 class ErrorOut(BaseModel):
     detail: str
     context: dict[str, Any] | None = None
+
+
+class ModuleSettingsIn(BaseModel):
+    settings: dict[str, Any] = Field(default_factory=dict)
+
+
+class ModuleSettingsOut(BaseModel):
+    module_key: str
+    settings: dict[str, Any] = Field(default_factory=dict)
+    updated_at: str | None = None

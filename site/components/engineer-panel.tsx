@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import {
@@ -11,9 +11,12 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { LogOut } from "lucide-react"
+import { loadModuleSettings, saveModuleSettings } from "@/lib/module-settings"
 
 interface EngineerPanelProps {
   onLogout: () => void
+  login: string
+  password: string
 }
 
 const mockEmployees = [
@@ -63,13 +66,48 @@ const mockEmployeeDialogs: Record<number, { id: number; date: string; client: st
 
 type ViewType = "main" | "dialogStats" | "employees" | "unprocessed" | "employeeDialogs"
 
-export function EngineerPanel({ onLogout }: EngineerPanelProps) {
+export function EngineerPanel({ onLogout, login, password }: EngineerPanelProps) {
   const [currentView, setCurrentView] = useState<ViewType>("main")
   const [period, setPeriod] = useState("day")
   const [sortBy, setSortBy] = useState("date")
   const [showCalendar, setShowCalendar] = useState(false)
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
   const [selectedEmployee, setSelectedEmployee] = useState<typeof mockEmployees[0] | null>(null)
+  const [isSettingsReady, setIsSettingsReady] = useState(false)
+
+  useEffect(() => {
+    let active = true
+    void loadModuleSettings("engineer", login, password)
+      .then((payload) => {
+        if (!active) {
+          return
+        }
+        const savedPeriod = payload.settings.period
+        const savedSortBy = payload.settings.sortBy
+        if (savedPeriod === "day" || savedPeriod === "week" || savedPeriod === "month") {
+          setPeriod(savedPeriod)
+        }
+        if (savedSortBy === "date" || savedSortBy === "sentiment" || savedSortBy === "script") {
+          setSortBy(savedSortBy)
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setIsSettingsReady(true)
+        }
+      })
+
+    return () => {
+      active = false
+    }
+  }, [login, password])
+
+  useEffect(() => {
+    if (!isSettingsReady) {
+      return
+    }
+    void saveModuleSettings("engineer", { period, sortBy }, login, password)
+  }, [period, sortBy, isSettingsReady, login, password])
 
   const getSentimentColor = (sentiment: string) => {
     switch (sentiment) {

@@ -1,11 +1,14 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { LogOut } from "lucide-react"
+import { loadModuleSettings, saveModuleSettings } from "@/lib/module-settings"
 
 interface AdminPanelProps {
   onLogout: () => void
+  login: string
+  password: string
 }
 
 const mockCurrentLogs = [
@@ -81,9 +84,40 @@ const mockErrorStats = {
 
 type ViewType = "main" | "history" | "errors"
 
-export function AdminPanel({ onLogout }: AdminPanelProps) {
+export function AdminPanel({ onLogout, login, password }: AdminPanelProps) {
   const [currentView, setCurrentView] = useState<ViewType>("main")
   const [isRunning, setIsRunning] = useState(true)
+  const [isSettingsReady, setIsSettingsReady] = useState(false)
+
+  useEffect(() => {
+    let active = true
+    void loadModuleSettings("admin", login, password)
+      .then((payload) => {
+        if (!active) {
+          return
+        }
+        const savedView = payload.settings.currentView
+        if (savedView === "main" || savedView === "history" || savedView === "errors") {
+          setCurrentView(savedView)
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setIsSettingsReady(true)
+        }
+      })
+
+    return () => {
+      active = false
+    }
+  }, [login, password])
+
+  useEffect(() => {
+    if (!isSettingsReady) {
+      return
+    }
+    void saveModuleSettings("admin", { currentView }, login, password)
+  }, [currentView, isSettingsReady, login, password])
 
   const getStatusColor = (status: string) => {
     switch (status) {

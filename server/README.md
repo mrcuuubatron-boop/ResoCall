@@ -17,6 +17,8 @@
 - `GET /api/v1/tasks` - список задач.
 - `GET /api/v1/tasks/{task_id}` - статус задачи.
 - `GET /api/v1/results/{task_id}` - результат анализа.
+- `GET /api/v1/modules/{module_key}/settings` - получить сохраненные настройки модуля для текущего пользователя.
+- `PUT /api/v1/modules/{module_key}/settings` - сохранить настройки модуля для текущего пользователя.
 - `GET /api/v1/health` - проверка состояния сервиса.
 
 Swagger UI доступен по адресу `/docs`.
@@ -114,6 +116,17 @@ curl -X POST "http://localhost:8000/api/v1/analysis/upload-and-analyze" \
 ```bash
 curl -H "x-login: engineer" -H "x-password: engineer" "http://localhost:8000/api/v1/tasks/<task_id>"
 curl -H "x-login: engineer" -H "x-password: engineer" "http://localhost:8000/api/v1/results/<task_id>"
+
+Настройки модулей (пример для модуля `engineer`):
+
+```bash
+curl -H "x-login: engineer" -H "x-password: engineer" "http://localhost:8000/api/v1/modules/engineer/settings"
+curl -X PUT "http://localhost:8000/api/v1/modules/engineer/settings" \
+  -H "Content-Type: application/json" \
+  -H "x-login: engineer" \
+  -H "x-password: engineer" \
+  -d '{"settings":{"period":"week","sortBy":"date"}}'
+```
 ```
 
 ## Подключение через Apache (Reverse Proxy)
