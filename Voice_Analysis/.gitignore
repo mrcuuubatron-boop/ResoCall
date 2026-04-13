@@ -1,0 +1,97 @@
+# Python virtual environment
+.venv/
+venv/
+env/
+ENV/
+bin/
+include/
+lib/
+lib64/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+.sublime-project
+.sublime-workspace
+
+# Audio files (test data)
+*.wav
+*.mp3
+*.ogg
+*.flac
+*.m4a
+*.aac
+test_*.wav
+batch_test_*.wav
+recording*.wav
+
+# Model files (pre-downloaded)
+*.pkl
+*.joblib
+*.h5
+*.pt
+*.pth
+*.onnx
+models/
+cache/
+
+# Test outputs
+test_outputs/
+results/
+*.log
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# OS files
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+
+# Data files
+*.csv
+*.json
+data/
+output/
+temp/
+tmp/
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+
+# Large files
+*.zip
+*.tar
+*.tar.gz
+*.rar
