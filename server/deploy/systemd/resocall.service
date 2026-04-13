@@ -1,0 +1,16 @@
+[Unit]
+Description=ResoCall FastAPI backend
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/home/nsmkd/tppo/ResoCall/server
+EnvironmentFile=/home/nsmkd/tppo/ResoCall/server/.env
+ExecStart=/home/nsmkd/tppo/ResoCall/server/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

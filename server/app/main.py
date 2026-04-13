@@ -1,8 +1,11 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from app.dependencies import build_context
 from app.routers.analysis import router as analysis_router
 from app.routers.auth import router as auth_router
+from app.routers.module_settings import router as module_settings_router
 
 
 def create_app() -> FastAPI:
@@ -13,8 +16,20 @@ def create_app() -> FastAPI:
     )
 
     app.state.ctx = build_context()
+    settings = app.state.ctx.settings
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_allow_origins_list,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=settings.trusted_proxy_ips_list)
+
     app.include_router(auth_router)
     app.include_router(analysis_router)
+    app.include_router(module_settings_router)
     return app
 
 
