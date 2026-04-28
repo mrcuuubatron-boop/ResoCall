@@ -13,10 +13,17 @@ def create_app() -> FastAPI:
         title="ResoCall Voice Processing Server",
         version="0.1.0",
         description="Backend service for call audio processing, ASR and quality analytics.",
+        docs_url=None,  # Disable default Swagger docs, we use custom monitor instead
+        openapi_url=None,
     )
 
     app.state.ctx = build_context()
     settings = app.state.ctx.settings
+
+    # initialize monitor state: an in-memory ring buffer for recent requests
+    from collections import deque
+
+    app.state.monitor = {"requests": deque(maxlen=200)}
 
     app.add_middleware(
         CORSMiddleware,
@@ -25,10 +32,23 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # register request-logging middleware
+    try:
+        from app.middleware.request_logger import RequestLoggingMiddleware
+
+        app.add_middleware(RequestLoggingMiddleware, buffer_size=200)
+    except Exception:
+        pass
+
     app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=settings.trusted_proxy_ips_list)
 
     app.include_router(auth_router)
     app.include_router(analysis_router)
+    # monitor router (runtime metrics and recent requests)
+    from app.routers.monitor import router as monitor_router, router_ui as monitor_ui_router
+    app.include_router(monitor_router)
+    app.include_router(monitor_ui_router)  # This registers /docs and other UI routes
     app.include_router(module_settings_router)
     return app
 
