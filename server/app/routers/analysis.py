@@ -78,7 +78,7 @@ async def upload_and_analyze(
 
     def _worker(task_id: str) -> None:
         try:
-            payload = ctx.pipeline.process(
+            payload = ctx.get_pipeline().process(
                 task_id=task_id,
                 file_name=file.filename or "uploaded",
                 audio_path=str(upload_path),
@@ -142,7 +142,18 @@ def get_result(
 @router.get("/health")
 def health(request: Request) -> JSONResponse:
     ctx = request.app.state.ctx
-    pipeline_runtime = ctx.pipeline.runtime_info()
+    # don't let pipeline import/initialization failures break the health check
+    try:
+        pipeline_runtime = ctx.get_pipeline().runtime_info()
+    except Exception as exc:  # pipeline may fail to initialize if heavy deps missing
+        pipeline_runtime = {
+            "asr_model": None,
+            "external_asr_enabled": False,
+            "external_asr_status": "error",
+            "external_asr_module_path": str(ctx.settings.external_asr_module_path),
+            "external_asr_error": str(exc),
+        }
+
     payload = {
         "status": "ok",
         "workers": ctx.settings.max_workers,
