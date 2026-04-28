@@ -1,2 +1,11 @@
 node_modules/
 test_data/
+
+# Generated frontend build output
+site/.next/
+site/.turbo/
+*.tsbuildinfo
+
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
