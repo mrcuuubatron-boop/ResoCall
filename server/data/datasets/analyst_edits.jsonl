@@ -1,0 +1,3 @@
+{"call_id":"c-1001","segment_id":"s-01","original_text":"service not good","corrected_text":"service quality is poor","original_label":"neutral","corrected_label":"negative","reason_code":"sentiment_fix","analyst_id":"analyst-1","edited_at":"2026-03-29T11:00:00Z"}
+{"call_id":"c-1002","segment_id":"s-03","original_text":"thanks for help","corrected_text":"thanks for quick help","original_label":"neutral","corrected_label":"positive","reason_code":"sentiment_fix","analyst_id":"analyst-2","edited_at":"2026-03-29T11:01:00Z"}
+{"call_id":"c-1003","segment_id":"s-02","original_text":"issue open","corrected_text":"issue is still open","original_label":"positive","corrected_label":"neutral","reason_code":"label_adjust","analyst_id":"analyst-1","edited_at":"2026-03-29T11:02:00Z"}

@@ -56,3 +56,33 @@ class Storage:
         path = self.default_script_path()
         path.parent.mkdir(parents=True, exist_ok=True)
         self.write_json(path, {"required_phrases": required_phrases})
+
+    def _sanitize_part(self, value: str) -> str:
+        safe = "".join(ch if ch.isalnum() or ch in {"-", "_"} else "_" for ch in value.strip().lower())
+        return safe or "unknown"
+
+    def module_settings_path(self, login: str, module_key: str) -> Path:
+        safe_login = self._sanitize_part(login)
+        safe_module = self._sanitize_part(module_key)
+        return self.settings.data_dir / "module_settings" / safe_login / f"{safe_module}.json"
+
+    def read_module_settings(self, login: str, module_key: str) -> tuple[dict[str, Any], str | None]:
+        path = self.module_settings_path(login, module_key)
+        if not path.exists():
+            return {}, None
+
+        payload = self.read_json(path)
+        settings = payload.get("settings") if isinstance(payload, dict) else None
+        updated_at = payload.get("updated_at") if isinstance(payload, dict) else None
+
+        if not isinstance(settings, dict):
+            settings = {}
+        if updated_at is not None and not isinstance(updated_at, str):
+            updated_at = None
+        return settings, updated_at
+
+    def write_module_settings(self, login: str, module_key: str, settings: dict[str, Any]) -> str:
+        now = datetime.now(timezone.utc).isoformat()
+        path = self.module_settings_path(login, module_key)
+        self.write_json(path, {"settings": settings, "updated_at": now})
+        return now
