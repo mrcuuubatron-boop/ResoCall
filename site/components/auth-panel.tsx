@@ -58,6 +58,7 @@ export function AuthPanel({ onLogin }: AuthPanelProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
+    setIsSubmitting(true)
 
     try {
       const response = await loginWithBackend(login, password)
@@ -78,13 +79,18 @@ export function AuthPanel({ onLogin }: AuthPanelProps) {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-neutral-50">
-      <Card className="w-full max-w-md mx-4 shadow-lg">
-        <CardHeader className="space-y-1 text-center">
-          <div className="flex justify-center mb-4">
-            <div className="w-16 h-16 bg-neutral-900 rounded-2xl flex items-center justify-center">
-              <Phone className="w-8 h-8 text-white" />
-            </div>
+    <div className="flex items-center justify-center min-h-[300px]">
+      <div className="bg-zinc-700 p-8 rounded-lg w-full max-w-md">
+        <h2 className="text-white text-xl font-medium text-center mb-6">Авторизация</h2>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Input
+              type="text"
+              placeholder="Логин"
+              value={login}
+              onChange={(e) => setLogin(e.target.value)}
+              className="bg-zinc-600 border-zinc-500 text-white placeholder:text-zinc-400"
+            />
           </div>
           <CardTitle className="text-2xl">Call-центр Аналитика</CardTitle>
           <CardDescription>

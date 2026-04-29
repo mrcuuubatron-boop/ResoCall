@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { AuthPanel } from "@/components/auth-panel"
 import { UserPanel } from "@/components/user-panel"
 import { EngineerPanel } from "@/components/engineer-panel"
@@ -27,6 +27,7 @@ export default function Home() {
   }
 
   const handleLogout = () => {
+    clearSession()
     setIsLoggedIn(false)
     setUserRole("")
     setCredentials(null)
@@ -34,10 +35,22 @@ export default function Home() {
 
   // Если не авторизован - показываем страницу авторизации
   if (!isLoggedIn) {
-    return <AuthPanel onLogin={handleLogin} />
+    return (
+      <div className="min-h-screen bg-zinc-900 flex items-center justify-center p-6">
+        <div className="w-full max-w-md">
+          <header className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-white mb-2">ResoCall</h1>
+            <p className="text-zinc-400">Анализ деятельности операторов call-центра с помощью ИИ</p>
+          </header>
+          <section className="bg-zinc-500 rounded-lg p-8">
+            <AuthPanel onLogin={handleLogin} />
+          </section>
+        </div>
+      </div>
+    )
   }
 
-  // Если авторизован - показываем панель соответствующую роли
+  // Если авторизован - показываем панель соответствующую роли на всю страницу
   return (
     <>
       {userRole === "user" && credentials && <UserPanel onLogout={handleLogout} />}
