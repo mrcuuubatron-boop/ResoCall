@@ -1,38 +1,79 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Phone } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Phone, ServerCrash, ShieldCheck } from "lucide-react"
+import { fetchBackendHealth, loginWithBackend, type BackendHealthResponse, type LoginResponse } from "@/lib/backend-api"
 
 interface AuthPanelProps {
-  onLogin: (role: string) => void
+  onLogin: (session: {
+    login: string
+    password: string
+    role: "admin" | "engineer" | "user"
+    token: string
+  }) => void
 }
 
 export function AuthPanel({ onLogin }: AuthPanelProps) {
   const [login, setLogin] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
+  const [backendHealth, setBackendHealth] = useState<BackendHealthResponse | null>(null)
+  const [backendError, setBackendError] = useState<string>("")
+  const [isCheckingBackend, setIsCheckingBackend] = useState(true)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    let active = true
+
+    const checkBackend = async () => {
+      try {
+        const health = await fetchBackendHealth()
+        if (active) {
+          setBackendHealth(health)
+          setBackendError("")
+        }
+      } catch (checkError) {
+        if (active) {
+          setBackendHealth(null)
+          setBackendError(checkError instanceof Error ? checkError.message : "Backend недоступен")
+        }
+      } finally {
+        if (active) {
+          setIsCheckingBackend(false)
+        }
+      }
+    }
+
+    void checkBackend()
+
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
 
-    // Проверка учетных данных - роль определяется автоматически по логину
-    const validCredentials: Record<string, { password: string; role: string }> = {
-      user: { password: "user", role: "operator" },
-      analyst: { password: "analyst", role: "analyst" },
-      admin: { password: "admin", role: "admin" },
-    }
+    try {
+      const response = await loginWithBackend(login, password)
+      if (!response.ok) {
+        setError("Сервер вернул некорректный ответ авторизации")
+        return
+      }
 
-    const user = validCredentials[login]
-    
-    if (user && user.password === password) {
-      onLogin(user.role)
-    } else {
-      setError("Неверный логин или пароль")
+      onLogin({
+        login,
+        password,
+        role: response.role,
+        token: response.token,
+      })
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : "Не удалось выполнить вход")
     }
   }
 
@@ -49,6 +90,21 @@ export function AuthPanel({ onLogin }: AuthPanelProps) {
           <CardDescription>
             Система анализа звонков операторов
           </CardDescription>
+          <div className="flex items-center justify-center gap-2 pt-2">
+            {isCheckingBackend ? (
+              <Badge variant="secondary">Проверка backend...</Badge>
+            ) : backendHealth ? (
+              <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200">
+                <ShieldCheck className="mr-1 h-3.5 w-3.5" />
+                Backend: {backendHealth.status}
+              </Badge>
+            ) : (
+              <Badge variant="destructive">
+                <ServerCrash className="mr-1 h-3.5 w-3.5" />
+                {backendError || "Backend недоступен"}
+              </Badge>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -85,8 +141,8 @@ export function AuthPanel({ onLogin }: AuthPanelProps) {
             </Button>
 
             <div className="text-xs text-neutral-500 text-center space-y-1 pt-2">
-              <p>Тестовые данные:</p>
-              <p className="font-mono">user/user | analyst/analyst | admin/admin</p>
+              <p>Тестовые данные backend:</p>
+              <p className="font-mono">user/user | engineer/engineer | admin/admin</p>
             </div>
           </form>
         </CardContent>
