@@ -15,98 +15,14 @@ interface SavedSession {
   token: string
 }
 
-interface AuthCredentials {
-  login: string
-  password: string
-}
-
-interface LoginResponse {
-  ok: boolean
-  role: Role
-  token: string
-}
-
-const SESSION_STORAGE_KEY = "resocall_auth_session"
-
-function isRole(value: string): value is Role {
-  return value === "admin" || value === "engineer" || value === "user"
-}
-
-function getApiBaseUrl(): string {
-  return process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000"
-}
-
-function saveSession(session: SavedSession): void {
-  window.localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session))
-}
-
-function loadSession(): SavedSession | null {
-  const raw = window.localStorage.getItem(SESSION_STORAGE_KEY)
-  if (!raw) {
-    return null
-  }
-
-  try {
-    const session = JSON.parse(raw) as SavedSession
-    if (!isRole(session.role) || !session.login || !session.password || !session.token) {
-      return null
-    }
-    return session
-  } catch {
-    return null
-  }
-}
-
-function clearSession(): void {
-  window.localStorage.removeItem(SESSION_STORAGE_KEY)
-}
-
 export default function Home() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [userRole, setUserRole] = useState<Role | "">("")
-  const [credentials, setCredentials] = useState<AuthCredentials | null>(null)
+  const [credentials, setCredentials] = useState<SavedSession | null>(null)
 
-  useEffect(() => {
-    const session = loadSession()
-    if (!session) {
-      clearSession()
-      return
-    }
-
+  const handleLogin = (session: SavedSession) => {
     setUserRole(session.role)
-    setCredentials({ login: session.login, password: session.password })
-    setIsLoggedIn(true)
-  }, [])
-
-  const handleLogin = async (login: string, password: string) => {
-    const response = await fetch(`${getApiBaseUrl()}/api/v1/auth/login`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ login, password }),
-    })
-
-    if (!response.ok) {
-      throw new Error("Неверный логин или пароль")
-    }
-
-    const data = (await response.json()) as LoginResponse
-    if (!data.ok || !isRole(data.role) || !data.token) {
-      throw new Error("Сервер вернул некорректный ответ авторизации")
-    }
-
-    const session: SavedSession = {
-      login,
-      password,
-      role: data.role,
-      token: data.token,
-    }
-
-    saveSession(session)
-
-    setUserRole(data.role)
-    setCredentials({ login, password })
+    setCredentials(session)
     setIsLoggedIn(true)
   }
 
@@ -136,28 +52,10 @@ export default function Home() {
 
   // Если авторизован - показываем панель соответствующую роли на всю страницу
   return (
-    <div className="min-h-screen bg-zinc-900 flex flex-col">
-      {userRole === "user" && credentials && (
-        <UserPanel
-          onLogout={handleLogout}
-          login={credentials.login}
-          password={credentials.password}
-        />
-      )}
-      {userRole === "engineer" && credentials && (
-        <EngineerPanel
-          onLogout={handleLogout}
-          login={credentials.login}
-          password={credentials.password}
-        />
-      )}
-      {userRole === "admin" && credentials && (
-        <AdminPanel
-          onLogout={handleLogout}
-          login={credentials.login}
-          password={credentials.password}
-        />
-      )}
-    </div>
+    <>
+      {userRole === "user" && credentials && <UserPanel onLogout={handleLogout} />}
+      {userRole === "engineer" && credentials && <EngineerPanel onLogout={handleLogout} />}
+      {userRole === "admin" && credentials && <AdminPanel onLogout={handleLogout} />}
+    </>
   )
 }
