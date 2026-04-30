@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import DashboardLayout from "./dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -26,144 +26,234 @@ import {
 import { format, subDays, startOfDay, endOfDay } from "date-fns"
 import { ru } from "date-fns/locale"
 import { DateRange } from "react-day-picker"
-import {
-  calls,
-  employees,
-  getEmployeeById,
-  getClientById,
-  getCallsByDateRange,
-  getUnprocessedCalls,
-  calculateEmployeeRating,
-  formatDuration,
-  formatDate,
-  getSentimentLabel,
-  getSentimentColor,
-  type Call,
-  type Sentiment
-} from "@/data/mock-data"
 
+// ---------- Типы ----------
+export interface Message {
+  speaker: 'operator' | 'client'
+  text: string
+  timestamp?: string
+}
+
+export type Sentiment = 'positive' | 'neutral' | 'negative'
+
+export interface Call {
+  id: string
+  employeeId: string
+  clientId: string
+  date: string
+  duration: number
+  transcript: Message[]
+  sentiment: Sentiment
+  scriptCompliance: number
+  category: string
+  isProcessed: boolean
+  errorReason?: string
+  audioUrl: string
+}
+
+export interface Employee {
+  id: string
+  name: string
+  position: string
+}
+
+export interface Client {
+  id: string
+  name: string
+}
+
+// ---------- Утилиты ----------
+function formatDuration(seconds: number): string {
+  const m = Math.floor(seconds / 60)
+  const s = seconds % 60
+  return `${m}:${s.toString().padStart(2, '0')}`
+}
+
+function formatDate(dateStr: string): string {
+  try {
+    return format(new Date(dateStr), "dd.MM.yyyy HH:mm", { locale: ru })
+  } catch {
+    return dateStr
+  }
+}
+
+function getSentimentLabel(s: Sentiment): string {
+  switch (s) {
+    case 'positive': return 'Позитивный'
+    case 'neutral': return 'Нейтральный'
+    case 'negative': return 'Негативный'
+    default: return s
+  }
+}
+
+function getSentimentColor(s: Sentiment): string {
+  switch (s) {
+    case 'positive': return 'bg-green-100 text-green-800'
+    case 'neutral': return 'bg-neutral-100 text-neutral-800'
+    case 'negative': return 'bg-red-100 text-red-800'
+    default: return ''
+  }
+}
+
+function calculateEmployeeRating(
+  empId: string,
+  calls: Call[]
+): { avgScriptCompliance: number; avgSentiment: number; rating: number; callsCount: number } {
+  const empCalls = calls.filter(c => c.employeeId === empId && c.isProcessed)
+  if (empCalls.length === 0) return { avgScriptCompliance: 0, avgSentiment: 0, rating: 0, callsCount: 0 }
+  
+  const avgScript = Math.round(empCalls.reduce((s, c) => s + c.scriptCompliance, 0) / empCalls.length)
+  const sentimentMap = { positive: 5, neutral: 3, negative: 1 }
+  const totalSent = empCalls.reduce((s, c) => s + (sentimentMap[c.sentiment] || 0), 0)
+  const avgSent = Math.round((totalSent / empCalls.length) * 20)
+  const rating = Math.round(avgScript * 0.6 + avgSent * 0.4)
+  return { avgScriptCompliance: avgScript, avgSentiment: avgSent, rating, callsCount: empCalls.length }
+}
+
+// ---------- Компонент EngineerPanel ----------
 interface EngineerPanelProps {
   onLogout: () => void
 }
 
 export function EngineerPanel({ onLogout }: EngineerPanelProps) {
-  // Состояние для главного календаря (по умолчанию последняя неделя)
+  const [employees, setEmployees] = useState<Employee[]>([])
+  const [clients, setClients] = useState<Client[]>([])
+  const [calls, setCalls] = useState<Call[]>([])
+  const [unprocessedCalls, setUnprocessedCalls] = useState<Call[]>([])
+  const [loadingCalls, setLoadingCalls] = useState(false)
+  const [loadingEmployees, setLoadingEmployees] = useState(false)
+
+  // Флаги состояния подключения
+  const [dataSource, setDataSource] = useState<'online' | 'offline'>('offline')
+
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: subDays(new Date(), 7),
     to: new Date()
   })
-  
-  // Состояние для фильтров в статистике диалогов
   const [dialogFilterDateRange, setDialogFilterDateRange] = useState<DateRange | undefined>()
-  const [dialogFilterScript, setDialogFilterScript] = useState<string>("all")
-  const [dialogFilterSentiment, setDialogFilterSentiment] = useState<string>("all")
-  
-  // Модальные окна
+  const [dialogFilterScript, setDialogFilterScript] = useState("all")
+  const [dialogFilterSentiment, setDialogFilterSentiment] = useState("all")
   const [selectedCall, setSelectedCall] = useState<Call | null>(null)
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null)
   const [unprocessedCallError, setUnprocessedCallError] = useState<Call | null>(null)
-  
-  // Сортировка рейтинга
-  const [ratingSortAsc, setRatingSortAsc] = useState<boolean>(false)
-  
-  // Фильтрация звонков по выбранному периоду
-  const filteredCalls = useMemo(() => {
-    if (!dateRange?.from) return calls.filter(c => c.isProcessed)
-    
-    const start = startOfDay(dateRange.from)
-    const end = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from)
-    
-    return getCallsByDateRange(start, end).filter(c => c.isProcessed)
+  const [ratingSortAsc, setRatingSortAsc] = useState(false)
+
+  // Загрузка справочников (сотрудники и клиенты) – не блокирует интерфейс
+  useEffect(() => {
+    async function loadDictionaries() {
+      setLoadingEmployees(true)
+      try {
+        const [empRes, clientRes] = await Promise.all([
+          fetch("/api/employees"),
+          fetch("/api/clients")
+        ])
+        if (!empRes.ok || !clientRes.ok) throw new Error("Ошибка справочников")
+        const emps = await empRes.json()
+        const cls = await clientRes.json()
+        setEmployees(emps)
+        setClients(cls)
+        setDataSource('online')
+      } catch {
+        setEmployees([])
+        setClients([])
+      } finally {
+        setLoadingEmployees(false)
+      }
+    }
+    loadDictionaries()
+
+    // Необработанные звонки
+    fetch("/api/calls/unprocessed")
+      .then(res => res.json())
+      .then(data => setUnprocessedCalls(data))
+      .catch(() => setUnprocessedCalls([]))
+  }, [])
+
+  // Загрузка звонков по периоду
+  useEffect(() => {
+    if (!dateRange?.from) return
+    async function fetchCalls() {
+      setLoadingCalls(true)
+      try {
+        const from = startOfDay(dateRange.from!).toISOString()
+        const to = endOfDay(dateRange.to || dateRange.from!).toISOString()
+        const res = await fetch(`/api/calls?from=${from}&to=${to}`)
+        if (!res.ok) throw new Error("Ошибка звонков")
+        const data = await res.json()
+        setCalls(data)
+      } catch {
+        setCalls([])
+      } finally {
+        setLoadingCalls(false)
+      }
+    }
+    fetchCalls()
   }, [dateRange])
-  
-  // Статистика по тональности
+
+  const getEmployeeById = useCallback((id: string) => employees.find(e => e.id === id) || null, [employees])
+  const getClientById = useCallback((id: string) => clients.find(c => c.id === id) || null, [clients])
+
+  const filteredCalls = useMemo(() => calls.filter(c => c.isProcessed), [calls])
+
   const sentimentStats = useMemo(() => {
     const stats = { positive: 0, neutral: 0, negative: 0 }
-    filteredCalls.forEach(call => {
-      stats[call.sentiment]++
-    })
+    filteredCalls.forEach(c => stats[c.sentiment]++)
     return stats
   }, [filteredCalls])
-  
+
   const totalCalls = filteredCalls.length
-  
-  // Средний показатель соблюдения скрипта
   const avgScriptCompliance = useMemo(() => {
-    if (filteredCalls.length === 0) return 0
-    return Math.round(filteredCalls.reduce((acc, call) => acc + call.scriptCompliance, 0) / filteredCalls.length)
-  }, [filteredCalls])
-  
-  // Рейтинг сотрудников
+    if (totalCalls === 0) return 0
+    return Math.round(filteredCalls.reduce((acc, c) => acc + c.scriptCompliance, 0) / totalCalls)
+  }, [filteredCalls, totalCalls])
+
   const employeeRatings = useMemo(() => {
-    const start = dateRange?.from ? startOfDay(dateRange.from) : undefined
-    const end = dateRange?.to ? endOfDay(dateRange.to) : dateRange?.from ? endOfDay(dateRange.from) : undefined
-    
     const ratings = employees.map(emp => ({
       ...emp,
-      ...calculateEmployeeRating(emp.id, start, end)
+      ...calculateEmployeeRating(emp.id, calls)
     }))
-    
     return ratingSortAsc 
       ? ratings.sort((a, b) => a.rating - b.rating)
       : ratings.sort((a, b) => b.rating - a.rating)
-  }, [dateRange, ratingSortAsc])
-  
-  // Необработанные звонки
-  const unprocessedCalls = getUnprocessedCalls()
-  
-  // Фильтрация диалогов для вкладки "Статистика диалогов"
+  }, [employees, calls, ratingSortAsc])
+
   const dialogsFiltered = useMemo(() => {
-    let result = calls.filter(c => c.isProcessed)
-    
-    // Фильтр по дате
+    let result = filteredCalls
     if (dialogFilterDateRange?.from) {
       const start = startOfDay(dialogFilterDateRange.from)
       const end = dialogFilterDateRange.to ? endOfDay(dialogFilterDateRange.to) : endOfDay(dialogFilterDateRange.from)
-      result = result.filter(call => {
-        const callDate = new Date(call.date)
-        return callDate >= start && callDate <= end
+      result = result.filter(c => {
+        const d = new Date(c.date)
+        return d >= start && d <= end
       })
     }
-    
-    // Фильтр по скрипту
     if (dialogFilterScript !== "all") {
-      if (dialogFilterScript === "gt90") {
-        result = result.filter(c => c.scriptCompliance > 90)
-      } else if (dialogFilterScript === "gt70") {
-        result = result.filter(c => c.scriptCompliance > 70)
-      } else if (dialogFilterScript === "lt70") {
-        result = result.filter(c => c.scriptCompliance < 70)
-      } else if (dialogFilterScript === "lt50") {
-        result = result.filter(c => c.scriptCompliance < 50)
-      }
+      if (dialogFilterScript === "gt90") result = result.filter(c => c.scriptCompliance > 90)
+      if (dialogFilterScript === "gt70") result = result.filter(c => c.scriptCompliance > 70)
+      if (dialogFilterScript === "lt70") result = result.filter(c => c.scriptCompliance < 70)
+      if (dialogFilterScript === "lt50") result = result.filter(c => c.scriptCompliance < 50)
     }
-    
-    // Фильтр по настроению
     if (dialogFilterSentiment !== "all") {
       result = result.filter(c => c.sentiment === dialogFilterSentiment)
     }
-    
     return result
-  }, [dialogFilterDateRange, dialogFilterScript, dialogFilterSentiment])
-  
-  // Звонки выбранного сотрудника
+  }, [filteredCalls, dialogFilterDateRange, dialogFilterScript, dialogFilterSentiment])
+
   const selectedEmployeeCalls = useMemo(() => {
     if (!selectedEmployeeId) return []
-    return calls.filter(c => c.employeeId === selectedEmployeeId && c.isProcessed)
-  }, [selectedEmployeeId])
-  
+    return filteredCalls.filter(c => c.employeeId === selectedEmployeeId)
+  }, [filteredCalls, selectedEmployeeId])
+
   const selectedEmployee = selectedEmployeeId ? getEmployeeById(selectedEmployeeId) : null
 
-  // Если выбран сотрудник - показываем его диалоги
+  // Если выбран сотрудник – показываем его диалоги
   if (selectedEmployeeId && selectedEmployee) {
     return (
       <DashboardLayout title="Диалоги сотрудника" role="Аналитик" onLogout={onLogout}>
         <div className="space-y-6">
           <Button variant="outline" onClick={() => setSelectedEmployeeId(null)}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Назад
+            <ArrowLeft className="w-4 h-4 mr-2" /> Назад
           </Button>
-          
           <Card>
             <CardHeader>
               <CardTitle>{selectedEmployee.name}</CardTitle>
@@ -177,27 +267,25 @@ export function EngineerPanel({ onLogout }: EngineerPanelProps) {
                 </div>
                 <div className="text-center p-4 bg-neutral-50 rounded-lg">
                   <p className="text-2xl font-bold">
-                    {selectedEmployeeCalls.length > 0 
+                    {selectedEmployeeCalls.length
                       ? Math.round(selectedEmployeeCalls.reduce((a, c) => a + c.scriptCompliance, 0) / selectedEmployeeCalls.length)
                       : 0}%
                   </p>
                   <p className="text-sm text-neutral-500">Соблюдение скрипта</p>
                 </div>
                 <div className="text-center p-4 bg-neutral-50 rounded-lg">
-                  <p className="text-2xl font-bold">{calculateEmployeeRating(selectedEmployeeId).rating}</p>
+                  <p className="text-2xl font-bold">
+                    {calculateEmployeeRating(selectedEmployeeId, calls).rating}
+                  </p>
                   <p className="text-sm text-neutral-500">Рейтинг</p>
                 </div>
               </div>
-              
               <div className="space-y-3">
                 {selectedEmployeeCalls.map(call => {
                   const client = getClientById(call.clientId)
                   return (
-                    <div 
-                      key={call.id} 
-                      className="border rounded-lg p-4 hover:bg-neutral-50 cursor-pointer transition-colors"
-                      onClick={() => setSelectedCall(call)}
-                    >
+                    <div key={call.id} className="border rounded-lg p-4 hover:bg-neutral-50 cursor-pointer transition-colors"
+                      onClick={() => setSelectedCall(call)}>
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="font-medium text-blue-600 hover:underline">
@@ -208,9 +296,7 @@ export function EngineerPanel({ onLogout }: EngineerPanelProps) {
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Badge className={getSentimentColor(call.sentiment)}>
-                            {getSentimentLabel(call.sentiment)}
-                          </Badge>
+                          <Badge className={getSentimentColor(call.sentiment)}>{getSentimentLabel(call.sentiment)}</Badge>
                           <Badge variant="outline">{formatDuration(call.duration)}</Badge>
                         </div>
                       </div>
@@ -221,16 +307,9 @@ export function EngineerPanel({ onLogout }: EngineerPanelProps) {
             </CardContent>
           </Card>
         </div>
-        
-        {/* Модальное окно диалога */}
-        <CallDetailModal 
-          call={selectedCall} 
-          onClose={() => setSelectedCall(null)}
-          onEmployeeClick={(empId) => {
-            setSelectedCall(null)
-            setSelectedEmployeeId(empId)
-          }}
-        />
+        <CallDetailModal call={selectedCall} onClose={() => setSelectedCall(null)}
+          onEmployeeClick={(empId) => { setSelectedCall(null); setSelectedEmployeeId(empId); }}
+          employees={employees} clients={clients} />
       </DashboardLayout>
     )
   }
@@ -238,7 +317,17 @@ export function EngineerPanel({ onLogout }: EngineerPanelProps) {
   return (
     <DashboardLayout title="Аналитика и статистика" role="Аналитик" onLogout={onLogout}>
       <div className="space-y-6">
-        {/* Выбор периода с календарём */}
+        {/* Предупреждение о недоступности данных */}
+        {dataSource === 'offline' && !loadingEmployees && (
+          <Card className="border-amber-200 bg-amber-50">
+            <CardContent className="py-3 flex items-center gap-2 text-amber-800">
+              <AlertCircle className="w-5 h-5" />
+              <span>Нет подключения к серверу. Данные могут быть неактуальны.</span>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Выбор периода */}
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-4 flex-wrap">
@@ -273,27 +362,14 @@ export function EngineerPanel({ onLogout }: EngineerPanelProps) {
                   />
                 </PopoverContent>
               </Popover>
-              
               <div className="flex gap-2">
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={() => setDateRange({ from: new Date(), to: new Date() })}
-                >
+                <Button variant="ghost" size="sm" onClick={() => setDateRange({ from: new Date(), to: new Date() })}>
                   Сегодня
                 </Button>
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={() => setDateRange({ from: subDays(new Date(), 7), to: new Date() })}
-                >
+                <Button variant="ghost" size="sm" onClick={() => setDateRange({ from: subDays(new Date(), 7), to: new Date() })}>
                   Неделя
                 </Button>
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={() => setDateRange({ from: subDays(new Date(), 30), to: new Date() })}
-                >
+                <Button variant="ghost" size="sm" onClick={() => setDateRange({ from: subDays(new Date(), 30), to: new Date() })}>
                   Месяц
                 </Button>
               </div>
@@ -301,7 +377,7 @@ export function EngineerPanel({ onLogout }: EngineerPanelProps) {
           </CardContent>
         </Card>
 
-        {/* Общая статистика */}
+        {/* Статистика */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card>
             <CardContent className="pt-6">
@@ -314,7 +390,6 @@ export function EngineerPanel({ onLogout }: EngineerPanelProps) {
               </div>
             </CardContent>
           </Card>
-
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
@@ -326,87 +401,61 @@ export function EngineerPanel({ onLogout }: EngineerPanelProps) {
               </div>
             </CardContent>
           </Card>
-
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-neutral-500">Сотрудников</p>
                   <p className="text-2xl font-semibold mt-1">{employees.length}</p>
-                  <div className="flex items-center gap-1 mt-2 text-sm text-neutral-500">
-                    <span>Активных</span>
-                  </div>
                 </div>
                 <Users className="w-10 h-10 text-neutral-400" />
               </div>
             </CardContent>
           </Card>
-
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-neutral-500">Необработано</p>
                   <p className="text-2xl font-semibold mt-1">{unprocessedCalls.length}</p>
-                  <div className="flex items-center gap-1 mt-2 text-sm text-amber-600">
-                    <AlertCircle className="w-4 h-4" />
-                    <span>Требует обработки</span>
-                  </div>
                 </div>
-                <AlertCircle className="w-10 h-10 text-neutral-400" />
+                <AlertCircle className="w-10 h-10 text-amber-500" />
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Распределение тональности */}
+        {/* Тональность */}
         <Card>
           <CardHeader>
             <CardTitle>Анализ тональности</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span>Позитивные</span>
-                  <span className="font-medium">{sentimentStats.positive} ({totalCalls > 0 ? Math.round(sentimentStats.positive / totalCalls * 100) : 0}%)</span>
+              {(['positive', 'neutral', 'negative'] as Sentiment[]).map(sent => (
+                <div key={sent} className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>{getSentimentLabel(sent)}</span>
+                    <span className="font-medium">
+                      {sentimentStats[sent]} ({totalCalls > 0 ? Math.round(sentimentStats[sent] / totalCalls * 100) : 0}%)
+                    </span>
+                  </div>
+                  <div className="w-full bg-neutral-100 rounded-full h-3">
+                    <div
+                      className={`h-3 rounded-full ${sent === 'positive' ? 'bg-green-500' : sent === 'neutral' ? 'bg-neutral-400' : 'bg-red-500'}`}
+                      style={{ width: `${totalCalls > 0 ? (sentimentStats[sent] / totalCalls) * 100 : 0}%` }}
+                    />
+                  </div>
                 </div>
-                <div className="w-full bg-neutral-100 rounded-full h-3">
-                  <div
-                    className="bg-green-500 h-3 rounded-full transition-all"
-                    style={{ width: `${totalCalls > 0 ? (sentimentStats.positive / totalCalls) * 100 : 0}%` }}
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span>Нейтральные</span>
-                  <span className="font-medium">{sentimentStats.neutral} ({totalCalls > 0 ? Math.round(sentimentStats.neutral / totalCalls * 100) : 0}%)</span>
-                </div>
-                <div className="w-full bg-neutral-100 rounded-full h-3">
-                  <div
-                    className="bg-neutral-400 h-3 rounded-full transition-all"
-                    style={{ width: `${totalCalls > 0 ? (sentimentStats.neutral / totalCalls) * 100 : 0}%` }}
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span>Негативные</span>
-                  <span className="font-medium">{sentimentStats.negative} ({totalCalls > 0 ? Math.round(sentimentStats.negative / totalCalls * 100) : 0}%)</span>
-                </div>
-                <div className="w-full bg-neutral-100 rounded-full h-3">
-                  <div
-                    className="bg-red-500 h-3 rounded-full transition-all"
-                    style={{ width: `${totalCalls > 0 ? (sentimentStats.negative / totalCalls) * 100 : 0}%` }}
-                  />
-                </div>
-              </div>
+              ))}
+              {totalCalls === 0 && (
+                <div className="text-sm text-neutral-500 text-center">Нет данных для анализа</div>
+              )}
             </div>
           </CardContent>
         </Card>
 
-        {/* Табы с данными */}
+        {/* Табы */}
         <Tabs defaultValue="dialogs" className="space-y-4">
           <TabsList>
             <TabsTrigger value="dialogs">Статистика диалогов</TabsTrigger>
@@ -414,14 +463,12 @@ export function EngineerPanel({ onLogout }: EngineerPanelProps) {
             <TabsTrigger value="unprocessed">Необработанные звонки</TabsTrigger>
           </TabsList>
 
-          {/* Статистика диалогов */}
           <TabsContent value="dialogs" className="space-y-4">
             <Card>
               <CardHeader>
                 <CardTitle>Все диалоги</CardTitle>
               </CardHeader>
               <CardContent>
-                {/* Фильтры */}
                 <div className="flex flex-wrap gap-4 mb-6 pb-6 border-b">
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-neutral-500">Дата:</span>
@@ -431,27 +478,15 @@ export function EngineerPanel({ onLogout }: EngineerPanelProps) {
                           <CalendarIcon className="mr-2 h-4 w-4" />
                           {dialogFilterDateRange?.from ? (
                             dialogFilterDateRange.to ? (
-                              <>
-                                {format(dialogFilterDateRange.from, "dd.MM", { locale: ru })} -{" "}
-                                {format(dialogFilterDateRange.to, "dd.MM", { locale: ru })}
-                              </>
+                              `${format(dialogFilterDateRange.from, "dd.MM", { locale: ru })} - ${format(dialogFilterDateRange.to, "dd.MM", { locale: ru })}`
                             ) : (
                               format(dialogFilterDateRange.from, "dd.MM.yyyy", { locale: ru })
                             )
-                          ) : (
-                            "Все даты"
-                          )}
+                          ) : "Все даты"}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          initialFocus
-                          mode="range"
-                          selected={dialogFilterDateRange}
-                          onSelect={setDialogFilterDateRange}
-                          numberOfMonths={2}
-                          locale={ru}
-                        />
+                        <Calendar initialFocus mode="range" selected={dialogFilterDateRange} onSelect={setDialogFilterDateRange} numberOfMonths={2} locale={ru} />
                       </PopoverContent>
                     </Popover>
                     {dialogFilterDateRange && (
@@ -460,13 +495,10 @@ export function EngineerPanel({ onLogout }: EngineerPanelProps) {
                       </Button>
                     )}
                   </div>
-                  
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-neutral-500">Скрипт:</span>
                     <Select value={dialogFilterScript} onValueChange={setDialogFilterScript}>
-                      <SelectTrigger className="w-[160px]">
-                        <SelectValue />
-                      </SelectTrigger>
+                      <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">Все</SelectItem>
                         <SelectItem value="gt90">Больше 90%</SelectItem>
@@ -476,13 +508,10 @@ export function EngineerPanel({ onLogout }: EngineerPanelProps) {
                       </SelectContent>
                     </Select>
                   </div>
-                  
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-neutral-500">Настроение:</span>
                     <Select value={dialogFilterSentiment} onValueChange={setDialogFilterSentiment}>
-                      <SelectTrigger className="w-[160px]">
-                        <SelectValue />
-                      </SelectTrigger>
+                      <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">Все</SelectItem>
                         <SelectItem value="positive">Позитивный</SelectItem>
@@ -492,71 +521,55 @@ export function EngineerPanel({ onLogout }: EngineerPanelProps) {
                     </Select>
                   </div>
                 </div>
-
                 <p className="text-sm text-neutral-500 mb-4">Найдено: {dialogsFiltered.length} диалогов</p>
-
                 <ScrollArea className="h-[500px]">
                   <div className="space-y-3">
-                    {dialogsFiltered.map(call => {
-                      const employee = getEmployeeById(call.employeeId)
-                      const client = getClientById(call.clientId)
-                      return (
-                        <div 
-                          key={call.id} 
-                          className="border rounded-lg p-4 hover:bg-neutral-50 transition-colors"
-                        >
-                          <div className="flex items-center justify-between mb-2">
-                            <button 
-                              className="font-medium text-blue-600 hover:underline text-left"
-                              onClick={() => setSelectedCall(call)}
-                            >
-                              Диалог #{call.id.replace('call-', '')}
-                            </button>
-                            <div className="flex items-center gap-2">
-                              <Badge className={getSentimentColor(call.sentiment)}>
-                                {getSentimentLabel(call.sentiment)}
-                              </Badge>
-                              <Badge variant="outline">{call.scriptCompliance}%</Badge>
+                    {dialogsFiltered.length === 0 ? (
+                      <div className="text-center py-8 text-neutral-500">Нет диалогов, удовлетворяющих фильтрам</div>
+                    ) : (
+                      dialogsFiltered.map(call => {
+                        const emp = getEmployeeById(call.employeeId)
+                        const client = getClientById(call.clientId)
+                        return (
+                          <div key={call.id} className="border rounded-lg p-4 hover:bg-neutral-50 transition-colors">
+                            <div className="flex items-center justify-between mb-2">
+                              <button className="font-medium text-blue-600 hover:underline text-left" onClick={() => setSelectedCall(call)}>
+                                Диалог #{call.id.replace('call-', '')}
+                              </button>
+                              <div className="flex items-center gap-2">
+                                <Badge className={getSentimentColor(call.sentiment)}>{getSentimentLabel(call.sentiment)}</Badge>
+                                <Badge variant="outline">{call.scriptCompliance}%</Badge>
+                              </div>
+                            </div>
+                            <div className="text-sm text-neutral-500">
+                              <span>Сотрудник: </span>
+                              <button className="text-blue-600 hover:underline" onClick={() => setSelectedEmployeeId(call.employeeId)}>
+                                {emp?.name ?? "Неизвестно"}
+                              </button>
+                              <span> | Клиент: {client?.name ?? "Неизвестно"}</span>
+                            </div>
+                            <div className="text-sm text-neutral-400 mt-1">
+                              {formatDate(call.date)} | {formatDuration(call.duration)} | {call.category}
                             </div>
                           </div>
-                          <div className="text-sm text-neutral-500">
-                            <span>Сотрудник: </span>
-                            <button 
-                              className="text-blue-600 hover:underline"
-                              onClick={() => setSelectedEmployeeId(call.employeeId)}
-                            >
-                              {employee?.name}
-                            </button>
-                            <span> | Клиент: {client?.name}</span>
-                          </div>
-                          <div className="text-sm text-neutral-400 mt-1">
-                            {formatDate(call.date)} | {formatDuration(call.duration)} | {call.category}
-                          </div>
-                        </div>
-                      )
-                    })}
+                        )
+                      })
+                    )}
                   </div>
                 </ScrollArea>
               </CardContent>
             </Card>
           </TabsContent>
 
-          {/* Рейтинг сотрудников */}
           <TabsContent value="employees" className="space-y-4">
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle>Сотрудники Call-центра</CardTitle>
-                    <p className="text-sm text-neutral-500 mt-1">
-                      Рейтинг = 60% соблюдение скрипта + 40% средняя тональность (шкала 0-5)
-                    </p>
+                    <p className="text-sm text-neutral-500 mt-1">Рейтинг = 60% соблюдение скрипта + 40% средняя тональность</p>
                   </div>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => setRatingSortAsc(!ratingSortAsc)}
-                  >
+                  <Button variant="outline" size="sm" onClick={() => setRatingSortAsc(!ratingSortAsc)}>
                     <ArrowUpDown className="w-4 h-4 mr-2" />
                     {ratingSortAsc ? "По возрастанию" : "По убыванию"}
                   </Button>
@@ -564,56 +577,53 @@ export function EngineerPanel({ onLogout }: EngineerPanelProps) {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {employeeRatings.map((employee, index) => (
-                    <div key={employee.id} className="border rounded-lg p-4 hover:bg-neutral-50 transition-colors">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
-                            index === 0 ? 'bg-yellow-400 text-yellow-900' :
-                            index === 1 ? 'bg-neutral-300 text-neutral-700' :
-                            index === 2 ? 'bg-amber-600 text-white' :
-                            'bg-neutral-900 text-white'
-                          }`}>
-                            {index + 1}
+                  {employeeRatings.length === 0 ? (
+                    <div className="text-center py-8 text-neutral-500">Нет данных о сотрудниках</div>
+                  ) : (
+                    employeeRatings.map((emp, index) => (
+                      <div key={emp.id} className="border rounded-lg p-4 hover:bg-neutral-50 transition-colors">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
+                              index === 0 ? 'bg-yellow-400 text-yellow-900' :
+                              index === 1 ? 'bg-neutral-300 text-neutral-700' :
+                              index === 2 ? 'bg-amber-600 text-white' : 'bg-neutral-900 text-white'
+                            }`}>
+                              {index + 1}
+                            </div>
+                            <div>
+                              <button className="font-medium text-blue-600 hover:underline text-left" onClick={() => setSelectedEmployeeId(emp.id)}>
+                                {emp.name}
+                              </button>
+                              <p className="text-sm text-neutral-500">{emp.callsCount} звонков</p>
+                            </div>
+                          </div>
+                          <Badge variant="outline" className="text-lg px-3 py-1">{emp.rating}</Badge>
+                        </div>
+                        <div className="space-y-2">
+                          <div>
+                            <div className="flex justify-between text-sm mb-1">
+                              <span className="text-neutral-500">Соблюдение скрипта</span>
+                              <span className="font-medium">{emp.avgScriptCompliance}%</span>
+                            </div>
+                            <Progress value={emp.avgScriptCompliance} className="h-2" />
                           </div>
                           <div>
-                            <button 
-                              className="font-medium text-blue-600 hover:underline text-left"
-                              onClick={() => setSelectedEmployeeId(employee.id)}
-                            >
-                              {employee.name}
-                            </button>
-                            <p className="text-sm text-neutral-500">{employee.callsCount} звонков</p>
+                            <div className="flex justify-between text-sm mb-1">
+                              <span className="text-neutral-500">Средняя тональность</span>
+                              <span className="font-medium">{emp.avgSentiment}%</span>
+                            </div>
+                            <Progress value={emp.avgSentiment} className="h-2" />
                           </div>
-                        </div>
-                        <Badge variant="outline" className="text-lg px-3 py-1">
-                          {employee.rating}
-                        </Badge>
-                      </div>
-                      <div className="space-y-2">
-                        <div>
-                          <div className="flex justify-between text-sm mb-1">
-                            <span className="text-neutral-500">Соблюдение скрипта</span>
-                            <span className="font-medium">{employee.avgScriptCompliance}%</span>
-                          </div>
-                          <Progress value={employee.avgScriptCompliance} className="h-2" />
-                        </div>
-                        <div>
-                          <div className="flex justify-between text-sm mb-1">
-                            <span className="text-neutral-500">Средняя тональность</span>
-                            <span className="font-medium">{employee.avgSentiment}%</span>
-                          </div>
-                          <Progress value={employee.avgSentiment} className="h-2" />
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
 
-          {/* Необработанные звонки */}
           <TabsContent value="unprocessed">
             <Card>
               <CardHeader>
@@ -621,33 +631,29 @@ export function EngineerPanel({ onLogout }: EngineerPanelProps) {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {unprocessedCalls.map((call) => {
-                    const client = getClientById(call.clientId)
-                    const employee = getEmployeeById(call.employeeId)
-                    return (
-                      <div key={call.id} className="border rounded-lg p-4">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-medium">{client?.name}</p>
-                            <p className="text-sm text-neutral-500">
-                              Сотрудник: {employee?.name} | {formatDate(call.date)}
-                            </p>
-                            <button 
-                              className="text-sm text-red-600 hover:underline mt-1"
-                              onClick={() => setUnprocessedCallError(call)}
-                            >
-                              {call.errorReason}
-                            </button>
+                  {unprocessedCalls.length === 0 ? (
+                    <div className="text-center py-8 text-green-600">Все звонки обработаны</div>
+                  ) : (
+                    unprocessedCalls.map(call => {
+                      const client = getClientById(call.clientId)
+                      const emp = getEmployeeById(call.employeeId)
+                      return (
+                        <div key={call.id} className="border rounded-lg p-4">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="font-medium">{client?.name ?? "Неизвестно"}</p>
+                              <p className="text-sm text-neutral-500">
+                                Сотрудник: {emp?.name ?? "Неизвестно"} | {formatDate(call.date)}
+                              </p>
+                              <button className="text-sm text-red-600 hover:underline mt-1" onClick={() => setUnprocessedCallError(call)}>
+                                {call.errorReason}
+                              </button>
+                            </div>
+                            <Badge variant="outline">{formatDuration(call.duration)}</Badge>
                           </div>
-                          <Badge variant="outline">{formatDuration(call.duration)}</Badge>
                         </div>
-                      </div>
-                    )
-                  })}
-                  {unprocessedCalls.length === 0 && (
-                    <div className="text-center py-8 text-green-600">
-                      Все звонки обработаны
-                    </div>
+                      )
+                    })
                   )}
                 </div>
               </CardContent>
@@ -655,23 +661,14 @@ export function EngineerPanel({ onLogout }: EngineerPanelProps) {
           </TabsContent>
         </Tabs>
       </div>
+
+      <CallDetailModal call={selectedCall} onClose={() => setSelectedCall(null)}
+        onEmployeeClick={(empId) => { setSelectedCall(null); setSelectedEmployeeId(empId); }}
+        employees={employees} clients={clients} />
       
-      {/* Модальное окно диалога */}
-      <CallDetailModal 
-        call={selectedCall} 
-        onClose={() => setSelectedCall(null)}
-        onEmployeeClick={(empId) => {
-          setSelectedCall(null)
-          setSelectedEmployeeId(empId)
-        }}
-      />
-      
-      {/* Модальное окно ошибки необработанного звонка */}
       <Dialog open={!!unprocessedCallError} onOpenChange={() => setUnprocessedCallError(null)}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Ошибка обработки звонка</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>Ошибка обработки звонка</DialogTitle></DialogHeader>
           {unprocessedCallError && (
             <div className="space-y-4">
               <div>
@@ -686,15 +683,9 @@ export function EngineerPanel({ onLogout }: EngineerPanelProps) {
                 <p className="text-sm text-neutral-500">Длительность:</p>
                 <p>{formatDuration(unprocessedCallError.duration)}</p>
               </div>
-              <div>
-                <p className="text-sm text-neutral-500 mb-2">Аудиофайл:</p>
-                <a 
-                  href={unprocessedCallError.audioUrl} 
-                  className="text-blue-600 hover:underline flex items-center gap-2"
-                >
-                  <Play className="w-4 h-4" />
-                  {unprocessedCallError.audioUrl}
-                </a>
+              <div className="flex items-center gap-2">
+                <Play className="w-4 h-4" />
+                <a href={unprocessedCallError.audioUrl} className="text-blue-600 hover:underline">{unprocessedCallError.audioUrl}</a>
               </div>
             </div>
           )}
@@ -704,43 +695,37 @@ export function EngineerPanel({ onLogout }: EngineerPanelProps) {
   )
 }
 
-// Компонент модального окна с деталями диалога
+// ---------- Модальное окно диалога ----------
 function CallDetailModal({ 
-  call, 
-  onClose,
-  onEmployeeClick 
+  call, onClose, onEmployeeClick, employees, clients 
 }: { 
   call: Call | null
   onClose: () => void
   onEmployeeClick: (employeeId: string) => void
+  employees: Employee[]
+  clients: Client[]
 }) {
   if (!call) return null
-  
-  const employee = getEmployeeById(call.employeeId)
-  const client = getClientById(call.clientId)
-  
+  const employee = employees.find(e => e.id === call.employeeId) || null
+  const client = clients.find(c => c.id === call.clientId) || null
+
   return (
     <Dialog open={!!call} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[80vh]">
         <DialogHeader>
           <DialogTitle>Диалог #{call.id.replace('call-', '')}</DialogTitle>
         </DialogHeader>
-        
         <div className="space-y-4">
-          {/* Информация о звонке */}
           <div className="grid grid-cols-2 gap-4 p-4 bg-neutral-50 rounded-lg">
             <div>
               <p className="text-sm text-neutral-500">Сотрудник:</p>
-              <button 
-                className="font-medium text-blue-600 hover:underline"
-                onClick={() => onEmployeeClick(call.employeeId)}
-              >
-                {employee?.name}
+              <button className="font-medium text-blue-600 hover:underline" onClick={() => onEmployeeClick(call.employeeId)}>
+                {employee?.name ?? "Неизвестно"}
               </button>
             </div>
             <div>
               <p className="text-sm text-neutral-500">Клиент:</p>
-              <p className="font-medium">{client?.name}</p>
+              <p className="font-medium">{client?.name ?? "Неизвестно"}</p>
             </div>
             <div>
               <p className="text-sm text-neutral-500">Дата:</p>
@@ -752,45 +737,28 @@ function CallDetailModal({
             </div>
             <div>
               <p className="text-sm text-neutral-500">Настроение:</p>
-              <Badge className={getSentimentColor(call.sentiment)}>
-                {getSentimentLabel(call.sentiment)}
-              </Badge>
+              <Badge className={getSentimentColor(call.sentiment)}>{getSentimentLabel(call.sentiment)}</Badge>
             </div>
             <div>
               <p className="text-sm text-neutral-500">Соблюдение скрипта:</p>
               <p className="font-medium">{call.scriptCompliance}%</p>
             </div>
           </div>
-          
-          {/* Ссылка на аудио */}
           <div className="flex items-center gap-2 p-3 border rounded-lg">
             <Play className="w-5 h-5 text-neutral-500" />
-            <a href={call.audioUrl} className="text-blue-600 hover:underline">
-              {call.audioUrl}
-            </a>
+            <a href={call.audioUrl} className="text-blue-600 hover:underline">{call.audioUrl}</a>
           </div>
-          
-          {/* Текст диалога */}
           <div>
             <p className="text-sm text-neutral-500 mb-2">Текст диалога:</p>
             <ScrollArea className="h-[300px] border rounded-lg p-4">
               <div className="space-y-3">
-                {call.transcript.map((message, index) => (
-                  <div 
-                    key={index}
-                    className={`p-3 rounded-lg ${
-                      message.speaker === 'operator' 
-                        ? 'bg-blue-50 ml-0 mr-8' 
-                        : 'bg-neutral-100 ml-8 mr-0'
-                    }`}
-                  >
+                {call.transcript.map((msg, i) => (
+                  <div key={i} className={`p-3 rounded-lg ${msg.speaker === 'operator' ? 'bg-blue-50 ml-0 mr-8' : 'bg-neutral-100 ml-8 mr-0'}`}>
                     <div className="flex justify-between items-center mb-1">
-                      <span className="text-xs font-medium text-neutral-500">
-                        {message.speaker === 'operator' ? 'Оператор' : 'Клиент'}
-                      </span>
-                      <span className="text-xs text-neutral-400">{message.timestamp}</span>
+                      <span className="text-xs font-medium text-neutral-500">{msg.speaker === 'operator' ? 'Оператор' : 'Клиент'}</span>
+                      {msg.timestamp && <span className="text-xs text-neutral-400">{msg.timestamp}</span>}
                     </div>
-                    <p className="text-sm">{message.text}</p>
+                    <p className="text-sm">{msg.text}</p>
                   </div>
                 ))}
               </div>
