@@ -48,7 +48,9 @@ def monitor(request: Request) -> JSONResponse:
 
     # process-level metrics via psutil if available
     try:
-        import psutil
+        import importlib
+
+        psutil = importlib.import_module("psutil")
 
         proc = psutil.Process()
         mem = proc.memory_info()
@@ -233,6 +235,36 @@ def monitor_docs() -> str:
                     <h2>⚙️ Process Info</h2>
                     <div id="process-stats"></div>
                 </div>
+                <div class="card">
+                    <h2>🗄️ Storage</h2>
+                    <div class="metric" style="gap:8px; align-items:flex-start; flex-direction:column;">
+                        <div style="display:flex; gap:8px; width:100%;">
+                            <input id="auth-login" placeholder="login" style="flex:1; padding:8px;" />
+                            <input id="auth-password" type="password" placeholder="password" style="flex:1; padding:8px;" />
+                            <button type="button" id="auth-apply">Apply</button>
+                        </div>
+                        <div style="font-size:12px; color:#555;">Storage/admin APIs now require auth (admin or engineer).</div>
+                    </div>
+                    <div id="storage-list"></div>
+                    <div style="margin-top:12px">
+                        <form id="upload-form">
+                            <input type="file" id="upload-file" />
+                            <select id="upload-area">
+                                <option value="uploads">uploads</option>
+                                <option value="results">results</option>
+                            </select>
+                            <button type="button" id="upload-btn">Upload</button>
+                        </form>
+                    </div>
+                    <div style="margin-top:12px">
+                        <h3 style="margin:8px 0">Uploads Metadata</h3>
+                        <div id="uploads-meta"></div>
+                    </div>
+                    <div style="margin-top:12px">
+                        <h3 style="margin:8px 0">Calls Archive</h3>
+                        <div id="calls-meta"></div>
+                    </div>
+                </div>
             </div>
 
             <div class="requests-section">
@@ -246,6 +278,29 @@ def monitor_docs() -> str:
         </div>
 
         <script>
+            const monitorAuth = {
+                login: localStorage.getItem('monitor_login') || '',
+                password: localStorage.getItem('monitor_password') || ''
+            };
+
+            document.getElementById('auth-login').value = monitorAuth.login;
+            document.getElementById('auth-password').value = monitorAuth.password;
+
+            function getAuthHeaders() {
+                if (!monitorAuth.login || !monitorAuth.password) return {};
+                const basic = btoa(monitorAuth.login + ':' + monitorAuth.password);
+                return { 'Authorization': 'Basic ' + basic };
+            }
+
+            document.getElementById('auth-apply').addEventListener('click', () => {
+                monitorAuth.login = document.getElementById('auth-login').value.trim();
+                monitorAuth.password = document.getElementById('auth-password').value;
+                localStorage.setItem('monitor_login', monitorAuth.login);
+                localStorage.setItem('monitor_password', monitorAuth.password);
+                updateStorage();
+                updateUploadsMeta();
+            });
+
             async function updateMonitor() {
                 try {
                     const res = await fetch('/api/v1/monitor');
@@ -314,6 +369,10 @@ def monitor_docs() -> str:
                     ` : '<div class="empty">No process data available</div>';
                     document.getElementById('process-stats').innerHTML = processHtml;
 
+                    // Update storage listing
+                    updateStorage();
+                    updateUploadsMeta();
+
                     // Update requests table
                     const requests = data.recent_requests || [];
                     let requestsHtml = '<table><thead><tr><th>Time</th><th>Method</th><th>Path</th><th>Client</th><th>Status</th><th>Duration (ms)</th></tr></thead><tbody>';
@@ -351,6 +410,205 @@ def monitor_docs() -> str:
             // Update immediately and then every 2 seconds
             updateMonitor();
             setInterval(updateMonitor, 2000);
+
+            async function updateStorage() {
+                try {
+                    const res = await fetch('/api/v1/storage/files?which=uploads', { headers: getAuthHeaders() });
+                    if (!res.ok) {
+                        document.getElementById('storage-list').innerHTML = '<div class="empty">Auth required for storage</div>';
+                        return;
+                    }
+                    const data = await res.json();
+                    const files = data.files || [];
+                    if (files.length === 0) {
+                        document.getElementById('storage-list').innerHTML = '<div class="empty">No files</div>';
+                        return;
+                    }
+                    let html = '<table><thead><tr><th>Name</th><th>Size</th><th>Action</th></tr></thead><tbody>';
+                    files.forEach(f => {
+                        html += `<tr><td>${f.name}</td><td>${(f.size/1024).toFixed(1)} KB</td><td><button type="button" data-name="${f.name}" class="download-file-btn">Download</button> | <button type="button" data-name="${f.name}" class="delete-file-btn">Delete</button></td></tr>`;
+                    });
+                    html += '</tbody></table>';
+                    document.getElementById('storage-list').innerHTML = html;
+
+                    document.querySelectorAll('.download-file-btn').forEach(btn => {
+                        btn.addEventListener('click', async () => {
+                            const name = btn.getAttribute('data-name');
+                            if (!name) return;
+                            try {
+                                const r = await fetch('/api/v1/storage/download?which=uploads&name=' + encodeURIComponent(name), {
+                                    headers: getAuthHeaders(),
+                                });
+                                if (!r.ok) throw new Error('download failed');
+                                const blob = await r.blob();
+                                const url = window.URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = url;
+                                a.download = name;
+                                document.body.appendChild(a);
+                                a.click();
+                                a.remove();
+                                window.URL.revokeObjectURL(url);
+                            } catch (err) {
+                                alert('Download failed');
+                            }
+                        });
+                    });
+
+                    document.querySelectorAll('.delete-file-btn').forEach(btn => {
+                        btn.addEventListener('click', async () => {
+                            const name = btn.getAttribute('data-name');
+                            if (!name) return;
+                            if (!confirm('Delete file ' + name + '?')) return;
+                            try {
+                                const del = await fetch('/api/v1/storage/file?which=uploads&name=' + encodeURIComponent(name), {
+                                    method: 'DELETE',
+                                    headers: getAuthHeaders(),
+                                });
+                                if (!del.ok) throw new Error('delete failed');
+                                updateStorage();
+                                updateUploadsMeta();
+                            } catch (err) {
+                                alert('Delete failed');
+                            }
+                        });
+                    });
+                } catch (err) {
+                    console.error('storage error', err);
+                    document.getElementById('storage-list').innerHTML = '<div class="empty">Error loading storage</div>';
+                }
+            }
+
+            async function updateUploadsMeta() {
+                try {
+                    const res = await fetch('/api/v1/storage/uploads?include_deleted=true&limit=50', { headers: getAuthHeaders() });
+                    if (!res.ok) {
+                        document.getElementById('uploads-meta').innerHTML = '<div class="empty">Auth required for metadata</div>';
+                        return;
+                    }
+                    const data = await res.json();
+                    const rows = data.uploads || [];
+                    if (rows.length === 0) {
+                        document.getElementById('uploads-meta').innerHTML = '<div class="empty">No upload metadata</div>';
+                        return;
+                    }
+                    let html = '<table><thead><tr><th>ID</th><th>Name</th><th>User</th><th>Uploaded</th><th>Deleted</th><th>Action</th></tr></thead><tbody>';
+                    rows.forEach(r => {
+                        const deleted = r.deleted_at ? 'yes' : 'no';
+                        const action = r.deleted_at ? '-' : `<button type="button" class="soft-delete-btn" data-id="${r.id}">Soft delete</button>`;
+                        html += `<tr><td>${r.id}</td><td>${r.name}</td><td>${r.uploader || '-'}</td><td>${r.uploaded_at || '-'}</td><td>${deleted}</td><td>${action}</td></tr>`;
+                    });
+                    html += '</tbody></table>';
+                    document.getElementById('uploads-meta').innerHTML = html;
+
+                    document.querySelectorAll('.soft-delete-btn').forEach(btn => {
+                        btn.addEventListener('click', async () => {
+                            const id = btn.getAttribute('data-id');
+                            if (!id) return;
+                            try {
+                                const r = await fetch('/api/v1/storage/uploads/' + encodeURIComponent(id) + '/soft-delete', {
+                                    method: 'POST',
+                                    headers: getAuthHeaders(),
+                                });
+                                if (!r.ok) throw new Error('soft delete failed');
+                                updateUploadsMeta();
+                            } catch (err) {
+                                alert('Soft delete failed');
+                            }
+                        });
+                    });
+                } catch (err) {
+                    console.error('uploads meta error', err);
+                    document.getElementById('uploads-meta').innerHTML = '<div class="empty">Error loading metadata</div>';
+                }
+            }
+
+            async function updateCallsMeta() {
+                try {
+                    const res = await fetch('/api/calls?include_deleted=true', { headers: getAuthHeaders() });
+                    if (!res.ok) {
+                        document.getElementById('calls-meta').innerHTML = '<div class="empty">Auth required for call archive</div>';
+                        return;
+                    }
+                    const rows = await res.json();
+                    if (!rows.length) {
+                        document.getElementById('calls-meta').innerHTML = '<div class="empty">No calls</div>';
+                        return;
+                    }
+                    let html = '<table><thead><tr><th>ID</th><th>Client</th><th>Date</th><th>Deleted</th><th>Action</th></tr></thead><tbody>';
+                    rows.forEach(r => {
+                        const deleted = r.deleted_at ? 'yes' : 'no';
+                        const action = r.deleted_at
+                            ? `<button type="button" class="restore-call-btn" data-id="${r.id}">Restore</button>`
+                            : `<button type="button" class="delete-call-btn" data-id="${r.id}">Soft delete</button>`;
+                        html += `<tr><td>${r.id}</td><td>${r.clientName || r.clientId || '-'}</td><td>${r.date || '-'}</td><td>${deleted}</td><td>${action}</td></tr>`;
+                    });
+                    html += '</tbody></table>';
+                    document.getElementById('calls-meta').innerHTML = html;
+
+                    document.querySelectorAll('.delete-call-btn').forEach(btn => {
+                        btn.addEventListener('click', async () => {
+                            const id = btn.getAttribute('data-id');
+                            if (!id) return;
+                            if (!confirm('Soft delete call ' + id + '?')) return;
+                            try {
+                                const r = await fetch('/api/calls/' + encodeURIComponent(id), {
+                                    method: 'DELETE',
+                                    headers: getAuthHeaders(),
+                                });
+                                if (!r.ok) throw new Error('soft delete failed');
+                                updateCallsMeta();
+                            } catch (err) {
+                                alert('Soft delete failed');
+                            }
+                        });
+                    });
+
+                    document.querySelectorAll('.restore-call-btn').forEach(btn => {
+                        btn.addEventListener('click', async () => {
+                            const id = btn.getAttribute('data-id');
+                            if (!id) return;
+                            try {
+                                const r = await fetch('/api/calls/' + encodeURIComponent(id) + '/restore', {
+                                    method: 'POST',
+                                    headers: getAuthHeaders(),
+                                });
+                                if (!r.ok) throw new Error('restore failed');
+                                updateCallsMeta();
+                            } catch (err) {
+                                alert('Restore failed');
+                            }
+                        });
+                    });
+                } catch (err) {
+                    console.error('calls meta error', err);
+                    document.getElementById('calls-meta').innerHTML = '<div class="empty">Error loading call archive</div>';
+                }
+            }
+
+            document.getElementById('upload-btn').addEventListener('click', async () => {
+                const inp = document.getElementById('upload-file');
+                const area = document.getElementById('upload-area').value;
+                if (!inp.files || inp.files.length === 0) return alert('Choose a file');
+                const file = inp.files[0];
+                const fd = new FormData();
+                fd.append('file', file);
+                fd.append('area', area);
+                try {
+                    const res = await fetch('/api/v1/storage/upload', { method: 'POST', body: fd, headers: getAuthHeaders() });
+                    if (!res.ok) throw new Error('upload failed');
+                    const j = await res.json();
+                    alert('Uploaded: ' + j.name);
+                    inp.value = '';
+                    updateStorage();
+                    updateUploadsMeta();
+                } catch (err) {
+                    console.error('upload err', err);
+                    alert('Upload failed');
+                }
+            });
+
+            updateCallsMeta();
         </script>
     </body>
     </html>

@@ -4,6 +4,10 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SERVER_DIR="$ROOT_DIR/server"
 SITE_DIR="$ROOT_DIR/site"
+SERVER_VENV_DIR="$SERVER_DIR/.venv"
+SERVER_PYTHON="$SERVER_VENV_DIR/bin/python"
+LOCK_FILE="$SITE_DIR/.next/dev/lock"
+POSTGRES_COMPOSE_DIR="$SERVER_DIR/deploy/postgres"
 
 if [[ ! -d "$SERVER_DIR" ]]; then
   echo "[error] server directory not found: $SERVER_DIR" >&2
@@ -15,32 +19,99 @@ if [[ ! -d "$SITE_DIR" ]]; then
   exit 1
 fi
 
-pick_python_with_uvicorn() {
-  local candidate="$1"
-  if [[ -x "$candidate" ]] && "$candidate" -c "import uvicorn" >/dev/null 2>&1; then
-    echo "$candidate"
-    return 0
+ensure_backend_env() {
+  if [[ ! -f "$SERVER_DIR/requirements.txt" ]]; then
+    echo "[error] backend requirements not found: $SERVER_DIR/requirements.txt" >&2
+    exit 1
   fi
-  return 1
+
+  local needs_install=0
+  if [[ ! -x "$SERVER_PYTHON" ]] || ! "$SERVER_PYTHON" -c "import uvicorn" >/dev/null 2>&1; then
+    needs_install=1
+  elif ! "$SERVER_PYTHON" -m pip check >/dev/null 2>&1; then
+    needs_install=1
+  fi
+
+  if [[ "$needs_install" -eq 1 ]]; then
+    if ! command -v python3 >/dev/null 2>&1; then
+      echo "[error] python3 is required to create the backend virtualenv" >&2
+      exit 1
+    fi
+
+    echo "[setup] Preparing backend virtualenv"
+    python3 -m venv "$SERVER_VENV_DIR"
+    "$SERVER_PYTHON" -m pip install --upgrade pip >/dev/null
+    "$SERVER_PYTHON" -m pip install -r "$SERVER_DIR/requirements.txt"
+  fi
 }
 
-if BACKEND_PYTHON="$(pick_python_with_uvicorn "$SERVER_DIR/.venv/bin/python")"; then
-  :
-elif BACKEND_PYTHON="$(pick_python_with_uvicorn "$ROOT_DIR/.venv/bin/python")"; then
-  :
-elif command -v python3 >/dev/null 2>&1 && python3 -c "import uvicorn" >/dev/null 2>&1; then
-  BACKEND_PYTHON="python3"
-else
-  echo "[error] uvicorn is not installed in server/.venv, .venv, or system python3" >&2
-  echo "[hint] Install backend deps: cd server && python -m pip install -r requirements.txt" >&2
+ensure_frontend_deps() {
+  if [[ ! -f "$SITE_DIR/package.json" ]]; then
+    echo "[error] frontend package.json not found: $SITE_DIR/package.json" >&2
+    exit 1
+  fi
+
+  if [[ ! -d "$SITE_DIR/node_modules" ]]; then
+    echo "[setup] Installing frontend dependencies"
+    if command -v pnpm >/dev/null 2>&1; then
+      (cd "$SITE_DIR" && pnpm install --frozen-lockfile)
+    elif command -v npm >/dev/null 2>&1; then
+      (cd "$SITE_DIR" && npm install)
+    else
+      echo "[error] pnpm or npm is required to install frontend dependencies" >&2
+      exit 1
+    fi
+  fi
+}
+
+ensure_postgres() {
+  if ss -ltn 2>/dev/null | grep -q ':5432 '; then
+    return 0
+  fi
+
+  if [[ -f "$POSTGRES_COMPOSE_DIR/docker-compose.yml" ]]; then
+    if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
+      echo "[setup] Starting PostgreSQL via Docker Compose"
+      (cd "$POSTGRES_COMPOSE_DIR" && docker compose up -d)
+    elif command -v docker-compose >/dev/null 2>&1; then
+      echo "[setup] Starting PostgreSQL via docker-compose"
+      (cd "$POSTGRES_COMPOSE_DIR" && docker-compose up -d)
+    else
+      echo "[error] PostgreSQL is not running on 127.0.0.1:5432 and Docker Compose is not available" >&2
+      echo "[hint] Install Docker or start PostgreSQL manually using server/deploy/postgres/docker-compose.yml" >&2
+      exit 1
+    fi
+
+    for _ in $(seq 1 30); do
+      if ss -ltn 2>/dev/null | grep -q ':5432 '; then
+        return 0
+      fi
+      sleep 1
+    done
+
+    echo "[error] PostgreSQL did not become ready on 127.0.0.1:5432" >&2
+    exit 1
+  fi
+
+  echo "[error] PostgreSQL is not running on 127.0.0.1:5432 and docker compose file is missing" >&2
   exit 1
-fi
+}
+
+ensure_postgres
+ensure_backend_env
+ensure_frontend_deps
+
+BACKEND_PYTHON="$SERVER_PYTHON"
 
 if command -v pnpm >/dev/null 2>&1; then
-  FRONT_CMD=(pnpm dev)
+  # Turbopack can panic on some Linux setups/paths; force stable webpack dev server.
+  FRONT_CMD=(pnpm exec next dev --webpack)
 else
-  FRONT_CMD=(npm run dev)
+  # Same fallback for npm to avoid Turbopack runtime crashes.
+  FRONT_CMD=(npx next dev --webpack)
 fi
+
+rm -f "$LOCK_FILE"
 
 BACKEND_PID=""
 FRONTEND_PID=""

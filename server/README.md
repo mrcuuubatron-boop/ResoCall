@@ -1,29 +1,36 @@
-# ResoCall Voice Server
+# ResoCall Server
 
-Бэкенд-сервис для загрузки и анализа аудиозвонков.
+Бэкенд `ResoCall` — это FastAPI-сервис для:
 
-## Что реализовано
+- аутентификации пользователей;
+- загрузки и обработки аудиофайлов;
+- управления задачами анализа;
+- хранения и выдачи результатов;
+- мониторинга состояния сервера и операций с файлами.
 
-- FastAPI API для загрузки файлов и асинхронной обработки.
-- ASR-пайплайн (Whisper), базовая оценка тональности и проверка скрипта.
-- Оценка категории и приоритета обращения.
-- Жизненный цикл задач: `queued -> processing -> done/failed`.
-- Простая аутентификация под демо-роли интерфейса.
+## Что внутри сервера
 
-## API
+Основные блоки:
 
-- `POST /api/v1/auth/login` - проверка логина/пароля и возврат роли.
-- `POST /api/v1/analysis/upload-and-analyze` - загрузка `.wav`/`.mp3` и запуск анализа.
-- `GET /api/v1/tasks` - список задач.
-- `GET /api/v1/tasks/{task_id}` - статус задачи.
-- `GET /api/v1/results/{task_id}` - результат анализа.
-- `GET /api/v1/modules/{module_key}/settings` - получить сохраненные настройки модуля для текущего пользователя.
-- `PUT /api/v1/modules/{module_key}/settings` - сохранить настройки модуля для текущего пользователя.
-- `GET /api/v1/health` - проверка состояния сервиса.
+- `app/main.py`: создание FastAPI-приложения, подключение middleware и роутеров.
+- `app/dependencies.py`: сборка контекста приложения (`settings`, `storage`, `db`, `tasks`, pipeline).
+- `app/services/database.py`: работа с PostgreSQL (пользователи, метаданные загрузок).
+- `app/services/storage.py`: файловое хранилище (`uploads`, `results`, `logs`) и JSON-настройки.
+- `app/services/task_manager.py`: очередь и статусы задач (`queued/processing/done/failed`).
+- `app/services/audio_pipeline.py`: ASR/анализ, формирование результата.
+- `app/routers/*.py`: API-эндпоинты (`auth`, `analysis`, `module_settings`, `monitor`, `storage_admin`).
 
-Swagger UI доступен по адресу `/docs`.
+## Как сервер работает (поток данных)
 
-## Локальный запуск
+1. Клиент проходит вход (`/api/v1/auth/login`).
+2. Клиент загружает аудио на анализ (`/api/v1/analysis/upload-and-analyze`) или напрямую в storage (`/api/v1/storage/upload`).
+3. Файл сохраняется в `data/uploads` или `data/results`.
+4. Для upload-операций метаданные пишутся в PostgreSQL (`uploads`).
+5. Аналитическая задача попадает в очередь (`TaskManager`) и обрабатывается worker'ами.
+6. Результат анализа сохраняется в `data/results/<task_id>.json`.
+7. Монитор (`/docs`) показывает состояние задач, процесса, запросов и storage.
+
+## Быстрый запуск (локально)
 
 ```bash
 cd server
@@ -34,191 +41,189 @@ cp .env.example .env
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-## База данных (PostgreSQL)
+Сервис будет доступен по адресу:
 
-Сервер работает только с PostgreSQL для SQL-запросов аутентификации.
+- `http://127.0.0.1:8000`
+- монитор: `http://127.0.0.1:8000/docs`
 
-Переменная подключения:
+## Основные команды для работы
 
-- `RESOCALL_POSTGRES_DSN=postgresql://resocall:resocall@127.0.0.1:5432/resocall`
-
-Таблица пользователей:
-
-- `users(login, password, role)`
-
-Endpoint входа `POST /api/v1/auth/login` проверяет данные через SQL-запрос в выбранной БД.
-Endpoint входа `POST /api/v1/auth/login` проверяет данные через SQL-запрос в PostgreSQL.
-
-### Подготовка PostgreSQL
-
-Готовые артефакты:
-
-- `deploy/postgres/docker-compose.yml`
-- `deploy/postgres/init.sql`
-
-Запуск локального PostgreSQL:
+### 1) Проверка состояния сервера
 
 ```bash
-cd server/deploy/postgres
-docker compose up -d
+curl http://127.0.0.1:8000/api/v1/health
 ```
 
-Далее в `.env`:
+### 2) Логин
 
 ```bash
-RESOCALL_POSTGRES_DSN=postgresql://resocall:resocall@127.0.0.1:5432/resocall
-```
-
-Проверка состояния БД через health:
-
-```bash
-curl http://127.0.0.1/api/v1/health
-```
-
-В ответе должны быть поля:
-
-- `db_backend: postgresql` - активный backend БД.
-- `database_ok: true` - SQL-запрос `SELECT 1` выполнился успешно.
-
-## Примеры запросов
-
-Вход:
-
-```bash
-curl -X POST "http://localhost:8000/api/v1/auth/login" \
+curl -X POST "http://127.0.0.1:8000/api/v1/auth/login" \
   -H "Content-Type: application/json" \
   -d '{"login":"engineer","password":"engineer"}'
 ```
 
-Демо-учетки:
+Демо-пользователи:
 
 - `admin/admin`
 - `engineer/engineer`
 - `user/user`
 
-Защищенные endpoint'ы требуют заголовки:
-
-- `x-login`
-- `x-password`
-
-Запуск анализа:
+### 3) Запуск анализа аудио
 
 ```bash
-curl -X POST "http://localhost:8000/api/v1/analysis/upload-and-analyze" \
+curl -X POST "http://127.0.0.1:8000/api/v1/analysis/upload-and-analyze" \
   -H "x-login: engineer" \
   -H "x-password: engineer" \
   -F "file=@/path/to/call.wav" \
   -F 'required_phrases=["здравствуйте","до свидания"]'
 ```
 
-Проверка статуса и получение результата:
+### 4) Проверка задач и результатов
 
 ```bash
-curl -H "x-login: engineer" -H "x-password: engineer" "http://localhost:8000/api/v1/tasks/<task_id>"
-curl -H "x-login: engineer" -H "x-password: engineer" "http://localhost:8000/api/v1/results/<task_id>"
+curl -H "x-login: engineer" -H "x-password: engineer" "http://127.0.0.1:8000/api/v1/tasks"
+curl -H "x-login: engineer" -H "x-password: engineer" "http://127.0.0.1:8000/api/v1/tasks/<task_id>"
+curl -H "x-login: engineer" -H "x-password: engineer" "http://127.0.0.1:8000/api/v1/results/<task_id>"
+```
 
-Настройки модулей (пример для модуля `engineer`):
+## Storage/Admin API (загрузка, просмотр, удаление)
+
+Эти эндпоинты защищены (роль `admin` или `engineer`).
+
+Поддерживаемые способы аутентификации:
+
+- заголовки `x-login` + `x-password`;
+- или Basic Auth (`-u login:password` в `curl`).
+
+### Список файлов
 
 ```bash
-curl -H "x-login: engineer" -H "x-password: engineer" "http://localhost:8000/api/v1/modules/engineer/settings"
-curl -X PUT "http://localhost:8000/api/v1/modules/engineer/settings" \
-  -H "Content-Type: application/json" \
-  -H "x-login: engineer" \
-  -H "x-password: engineer" \
-  -d '{"settings":{"period":"week","sortBy":"date"}}'
-```
+curl -u engineer:engineer "http://localhost:8000/api/v1/storage/files?which=uploads"
 ```
 
-## Подключение через Apache (Reverse Proxy)
+`which`:
 
-Цель: отдать проект через один публичный вход Apache и проксировать маршруты:
+- `uploads`
+- `results`
+- `logs`
 
-- `/api/*` -> FastAPI (`127.0.0.1:8000`)
-- `/` -> Next.js (`127.0.0.1:3000`)
-
-Готовые файлы в репозитории:
-
-- `deploy/apache/resocall.conf`
-- `deploy/systemd/resocall.service`
-
-### 1) Поднять backend как systemd-сервис
+### Загрузка файла
 
 ```bash
-cd server
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
-sudo cp deploy/systemd/resocall.service /etc/systemd/system/resocall.service
-sudo systemctl daemon-reload
-sudo systemctl enable --now resocall
-sudo systemctl status resocall
+curl -u engineer:engineer \
+  -F file=@/path/to/call.wav \
+  -F area=uploads \
+  "http://localhost:8000/api/v1/storage/upload"
 ```
 
-Важно:
-
-- В `deploy/systemd/resocall.service` пользователь сейчас `www-data`.
-- Если директория проекта принадлежит другому пользователю, дайте права чтения/запуска или поменяйте `User`/`Group`.
-
-### 2) Включить reverse proxy в Apache
+### Скачивание файла
 
 ```bash
-sudo a2enmod proxy proxy_http headers rewrite
-sudo cp deploy/apache/resocall.conf /etc/apache2/sites-available/resocall.conf
-sudo a2ensite resocall.conf
-sudo systemctl reload apache2
+curl -u engineer:engineer -OJ "http://localhost:8000/api/v1/storage/download?which=uploads&name=call.wav"
 ```
 
-При необходимости отключите дефолтный сайт:
+### Удаление физического файла (A)
 
 ```bash
-sudo a2dissite 000-default.conf
-sudo systemctl reload apache2
+curl -X DELETE -u engineer:engineer \
+  "http://localhost:8000/api/v1/storage/file?which=uploads&name=call.wav"
 ```
 
-### 3) Проверить маршрутизацию через Apache
+### Метаданные загрузок (B)
 
 ```bash
-curl http://127.0.0.1/api/v1/health
-curl http://127.0.0.1/api/v1/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"login":"engineer","password":"engineer"}'
+curl -u engineer:engineer \
+  "http://localhost:8000/api/v1/storage/uploads?include_deleted=true&limit=50&offset=0"
 ```
 
-Если эти запросы работают через порт Apache, значит reverse proxy настроен корректно.
+Фильтры:
 
-Проверка статуса межмодульной интеграции (внешний ASR):
+- `area=uploads|results|logs`
+- `uploader=<login>`
+- `include_deleted=true|false`
+- `limit`, `offset`
+
+### Soft-delete по записи upload (B)
 
 ```bash
-curl http://127.0.0.1/api/v1/health
+curl -X POST -u engineer:engineer \
+  "http://localhost:8000/api/v1/storage/uploads/123/soft-delete"
 ```
 
-Ключевые поля в ответе:
+Soft-delete + удаление физического файла:
 
-- `database_ok`: доступна ли БД и выполняется ли SQL-запрос.
-- `external_asr_enabled`: включен ли режим внешнего модуля.
-- `external_asr_status`: `active`, `disabled`, `unavailable`, `runtime_failed`.
-- `external_asr_error`: текст последней ошибки (если есть).
+```bash
+curl -X POST -u engineer:engineer \
+  "http://localhost:8000/api/v1/storage/uploads/123/soft-delete?purge_file=true"
+```
 
-## Связь модулей между собой (ASR bridge)
+## База данных (PostgreSQL)
 
-Сервер поддерживает 2 режима работы ASR:
+Сервер использует PostgreSQL для аутентификации и метаданных storage.
 
-- Внутренний: собственный пайплайн в `app/services/audio_pipeline.py`.
-- Внешний: подключение модуля `../ASR/ASR.py` и вызов класса `CallAnalyzer`.
+Переменная окружения:
 
-Настройки в `.env`:
+```bash
+RESOCALL_POSTGRES_DSN=postgresql://resocall:resocall@127.0.0.1:5432/resocall
+```
 
-- `RESOCALL_EXTERNAL_ASR_MODULE=true` - включить внешний ASR-модуль.
-- `RESOCALL_ASR_MODULE_PATH=../ASR/ASR.py` - путь до файла внешнего модуля.
+Таблицы:
 
-Логика отказоустойчивости:
+- `users(login, password, role)`
+- `uploads(id, name, area, size, uploader, uploaded_at, deleted_at, deleted_by)`
 
-- При недоступности/ошибке внешнего модуля сервер автоматически переключается на внутренний ASR-пайплайн.
-- Это позволяет API продолжать работу даже при сбое внешней части.
+Проверка метаданных в БД:
 
-## Примечания по эксплуатации
+```bash
+psql "$RESOCALL_POSTGRES_DSN" \
+  -c "SELECT id,name,area,size,uploader,uploaded_at,deleted_at,deleted_by FROM uploads ORDER BY uploaded_at DESC LIMIT 50;"
+```
 
-- Диаризация сейчас заглушка (`speaker=unknown`).
-- Классификация и тональность реализованы эвристически; для продакшена лучше заменить на ML-модели.
-- При ошибке обработки исходный файл остается в `data/uploads`, а описание ошибки пишется в `data/logs`.
+## Как сохраняются данные и почему они не теряются после рестарта
+
+Постоянные данные:
+
+- Файлы: `data/uploads`, `data/results`, `data/logs`.
+- Метаданные загрузок: PostgreSQL, таблица `uploads`.
+- Пользователи/роли: PostgreSQL, таблица `users`.
+
+На старте приложения вызывается `db.init()`:
+
+- таблицы создаются, если отсутствуют;
+- демо-пользователи добавляются только если их еще нет.
+
+Итог: после перезапуска сервера файлы и записи в БД остаются доступными.
+
+## Подготовка PostgreSQL через Docker
+
+```bash
+cd server/deploy/postgres
+docker compose up -d
+```
+
+SQL-инициализация находится в:
+
+- `deploy/postgres/init.sql`
+
+## Преимущества сервера
+
+- Простая архитектура: легко развернуть и поддерживать.
+- Прозрачный мониторинг: `/docs` показывает задачи, запросы, загрузки и состояние процесса.
+- Надежное хранение: файлы на диске + метаданные в PostgreSQL.
+- Безопасность для admin/storage операций: role-based доступ (`admin`/`engineer`).
+- Гибкий API: можно автоматизировать загрузку, аналитику, выгрузку и аудит.
+- Отказоустойчивость ASR: возможен fallback между внешним и внутренним пайплайном.
+
+## Полезные файлы деплоя
+
+- `deploy/apache/resocall.conf` — reverse proxy для Apache.
+- `deploy/systemd/resocall.service` — systemd unit для backend.
+- `deploy/postgres/docker-compose.yml` — локальный PostgreSQL.
+
+## Краткий чек-лист перед эксплуатацией
+
+1. Запустить PostgreSQL и проверить `RESOCALL_POSTGRES_DSN`.
+2. Запустить backend и проверить `/api/v1/health`.
+3. Проверить логин и роль.
+4. Проверить upload/download/delete в storage.
+5. Открыть `/docs` и убедиться, что монитор показывает актуальные данные.

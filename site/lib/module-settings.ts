@@ -5,7 +5,18 @@ export interface ModuleSettingsResponse {
 }
 
 function getApiBaseUrl(): string {
-  return process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000"
+  const configured = process.env.NEXT_PUBLIC_API_BASE_URL
+  if (configured) return configured
+
+  // Build backend URL from current browser host by default.
+  if (typeof window !== "undefined") {
+    const protocol = window.location.protocol || "http:"
+    const host = window.location.hostname || "localhost"
+    const port = process.env.NEXT_PUBLIC_API_PORT || "8000"
+    return `${protocol}//${host}:${port}`
+  }
+
+  return "http://localhost:8000"
 }
 
 function buildAuthHeaders(login: string, password: string): HeadersInit {

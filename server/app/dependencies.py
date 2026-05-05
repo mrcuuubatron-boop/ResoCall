@@ -1,4 +1,5 @@
 from app.config import Settings, get_settings
+from app.services.call_store import CallStore
 from app.services.database import Database
 from app.services.storage import Storage
 from app.services.task_manager import TaskManager
@@ -9,6 +10,13 @@ class AppContext:
         self.settings = settings
         self.storage = Storage(settings)
         self.db = Database(postgres_dsn=settings.postgres_dsn)
+        try:
+            # ensure schema and demo users exist so server state persists across restarts
+            self.db.init()
+        except Exception:
+            # don't fail context construction if DB is unavailable
+            pass
+        self.calls = CallStore(settings)
         self.tasks = TaskManager(max_workers=settings.max_workers)
         self._pipeline = None
 

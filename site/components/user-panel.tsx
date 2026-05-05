@@ -24,9 +24,16 @@ interface Call {
   id: string
   clientName: string
   date: string
-  duration: string
+  duration: number
+  durationText?: string
   transcript: Message[]
   audioUrl: string
+}
+
+function formatDuration(seconds: number): string {
+  const minutes = Math.floor(seconds / 60)
+  const remainder = seconds % 60
+  return `${minutes}:${remainder.toString().padStart(2, "0")}`
 }
 
 interface UserPanelProps {
@@ -84,7 +91,7 @@ export function UserPanel({ onLogout }: UserPanelProps) {
         result.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
         break
       case "duration":
-        result.sort((a, b) => b.duration.localeCompare(a.duration))
+        result.sort((a, b) => b.duration - a.duration)
         break
       case "client":
         result.sort((a, b) => a.clientName.localeCompare(b.clientName))
@@ -200,11 +207,11 @@ export function UserPanel({ onLogout }: UserPanelProps) {
                       <div className="flex flex-wrap gap-4 text-sm text-neutral-500">
                         <div className="flex items-center gap-1">
                           <Calendar className="w-4 h-4" />
-                          {call.date}
+                          {format(new Date(call.date), "dd.MM.yyyy HH:mm", { locale: ru })}
                         </div>
                         <div className="flex items-center gap-1">
                           <Clock className="w-4 h-4" />
-                          {call.duration}
+                          {call.durationText || formatDuration(call.duration)}
                         </div>
                       </div>
                     </div>
@@ -234,11 +241,11 @@ export function UserPanel({ onLogout }: UserPanelProps) {
                 </div>
                 <div>
                   <p className="text-sm text-neutral-500">Дата и время</p>
-                  <p className="font-medium">{selectedCall.date}</p>
+                  <p className="font-medium">{format(new Date(selectedCall.date), "dd.MM.yyyy HH:mm", { locale: ru })}</p>
                 </div>
                 <div>
                   <p className="text-sm text-neutral-500">Длительность</p>
-                  <p className="font-medium">{selectedCall.duration}</p>
+                  <p className="font-medium">{selectedCall.durationText || formatDuration(selectedCall.duration)}</p>
                 </div>
               </div>
               <div>

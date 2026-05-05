@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse, Response
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from app.dependencies import build_context
@@ -45,11 +46,34 @@ def create_app() -> FastAPI:
 
     app.include_router(auth_router)
     app.include_router(analysis_router)
+    from app.routers.calls import router as calls_router
+    from app.routers.neural_network import router as neural_network_router
+
+    app.include_router(calls_router)
+    app.include_router(neural_network_router)
     # monitor router (runtime metrics and recent requests)
     from app.routers.monitor import router as monitor_router, router_ui as monitor_ui_router
     app.include_router(monitor_router)
     app.include_router(monitor_ui_router)  # This registers /docs and other UI routes
+    # storage/admin endpoints (file listing, upload, download, user listing)
+    try:
+        from app.routers.storage_admin import router as storage_router
+
+        app.include_router(storage_router)
+    except Exception:
+        pass
     app.include_router(module_settings_router)
+
+    @app.get("/", include_in_schema=False)
+    def root_redirect() -> RedirectResponse:
+        # Keep browser/manual checks landing on the custom monitor UI.
+        return RedirectResponse(url="/docs", status_code=307)
+
+    @app.get("/favicon.ico", include_in_schema=False)
+    def favicon() -> Response:
+        # Silence common browser favicon probes without polluting logs with 404.
+        return Response(status_code=204)
+
     return app
 
 

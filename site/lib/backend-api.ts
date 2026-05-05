@@ -17,7 +17,19 @@ export interface LoginResponse {
 }
 
 function getApiBaseUrl(): string {
-  return process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000"
+  const configured = process.env.NEXT_PUBLIC_API_BASE_URL
+  if (configured) return configured
+
+  // If app is opened from another device (e.g. 192.168.x.x:3000),
+  // localhost would point to that device and break API calls.
+  if (typeof window !== "undefined") {
+    const protocol = window.location.protocol || "http:"
+    const host = window.location.hostname || "localhost"
+    const port = process.env.NEXT_PUBLIC_API_PORT || "8000"
+    return `${protocol}//${host}:${port}`
+  }
+
+  return "http://localhost:8000"
 }
 
 export function getApiUrl(path: string): string {

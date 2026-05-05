@@ -28,18 +28,21 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         finally:
             duration = perf_counter() - start
             monitor = getattr(request.app.state, "monitor", None)
+            path = request.url.path
             entry: Dict[str, Any] = {
                 "ts": request.scope.get("time", None),
                 "method": request.method,
-                "path": request.url.path,
+                "path": path,
                 "client": client_host,
                 "status": status,
                 "duration_s": round(duration, 4),
             }
-            if monitor is not None:
-                try:
+            # don't log monitor requests (so the monitor doesn't show itself)
+            try:
+                ignore_prefixes = ("/api/v1/monitor", "/docs")
+                if monitor is not None and not any(path.startswith(p) for p in ignore_prefixes):
                     monitor_requests: Deque = monitor.get("requests")
                     monitor_requests.append(entry)
-                except Exception:
-                    pass
+            except Exception:
+                pass
         return response
