@@ -1,0 +1,26 @@
+[
+  {
+    "type": "LowAudioQuality",
+    "count": 1,
+    "percentage": 50,
+    "audioFiles": [
+      {
+        "id": "e1",
+        "path": "/api/calls/audio/call-5.mp3",
+        "timestamp": "2026-05-04 09:18"
+      }
+    ]
+  },
+  {
+    "type": "ASRTimeout",
+    "count": 1,
+    "percentage": 50,
+    "audioFiles": [
+      {
+        "id": "e2",
+        "path": "/api/calls/audio/call-3.mp3",
+        "timestamp": "2026-05-04 09:23"
+      }
+    ]
+  }
+]

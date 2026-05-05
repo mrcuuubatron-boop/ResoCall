@@ -1,0 +1,12 @@
+[
+  {
+    "speaker": "client",
+    "text": "Алло? Меня плохо слышно?",
+    "timestamp": "00:00"
+  },
+  {
+    "speaker": "operator",
+    "text": "Да, связь нестабильная.",
+    "timestamp": "00:03"
+  }
+]

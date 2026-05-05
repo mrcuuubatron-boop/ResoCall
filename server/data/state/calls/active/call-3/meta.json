@@ -1,0 +1,15 @@
+{
+  "id": "call-3",
+  "employeeId": "emp3",
+  "clientId": "cl3",
+  "date": "2026-05-02T13:20:00+00:00",
+  "duration": 510,
+  "sentiment": "negative",
+  "scriptCompliance": 68,
+  "category": "Техническая поддержка",
+  "isProcessed": true,
+  "errorReason": null,
+  "audioUrl": "/api/calls/audio/call-3.mp3",
+  "deleted_at": null,
+  "deleted_by": null
+}

@@ -1,0 +1,22 @@
+[
+  {
+    "speaker": "operator",
+    "text": "Добрый день! Компания 'РесоКалл', Анна. Чем могу помочь?",
+    "timestamp": "00:00"
+  },
+  {
+    "speaker": "client",
+    "text": "Здравствуйте, у меня вопрос по оплате.",
+    "timestamp": "00:05"
+  },
+  {
+    "speaker": "operator",
+    "text": "Сейчас проверю ваш договор.",
+    "timestamp": "00:12"
+  },
+  {
+    "speaker": "client",
+    "text": "Спасибо.",
+    "timestamp": "00:18"
+  }
+]

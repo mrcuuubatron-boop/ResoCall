@@ -1,0 +1,15 @@
+{
+  "id": "call-6",
+  "employeeId": "emp2",
+  "clientId": "cl1",
+  "date": "2026-05-04T12:00:00+00:00",
+  "duration": 480,
+  "sentiment": "positive",
+  "scriptCompliance": 97,
+  "category": "Подключение услуг",
+  "isProcessed": true,
+  "errorReason": null,
+  "audioUrl": "/api/calls/audio/call-6.mp3",
+  "deleted_at": null,
+  "deleted_by": null
+}

@@ -1,0 +1,24 @@
+[
+  {
+    "id": "1",
+    "startTime": "2026-05-04 09:00",
+    "endTime": "2026-05-04 09:42",
+    "status": "completed",
+    "processed": 38,
+    "errors": 2,
+    "errorList": [
+      {
+        "id": "run1-err1",
+        "audioPath": "/api/calls/audio/call-5.mp3",
+        "errorType": "LowAudioQuality",
+        "message": "Низкое качество аудио"
+      },
+      {
+        "id": "run1-err2",
+        "audioPath": "/api/calls/audio/call-3.mp3",
+        "errorType": "ASRTimeout",
+        "message": "Timeout обработки модели"
+      }
+    ]
+  }
+]

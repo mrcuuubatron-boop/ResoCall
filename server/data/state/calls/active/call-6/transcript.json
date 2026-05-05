@@ -1,0 +1,22 @@
+[
+  {
+    "speaker": "operator",
+    "text": "Здравствуйте! Компания 'РесоКалл'.",
+    "timestamp": "00:00"
+  },
+  {
+    "speaker": "client",
+    "text": "Хочу подключить дополнительную услугу.",
+    "timestamp": "00:05"
+  },
+  {
+    "speaker": "operator",
+    "text": "С удовольствием оформлю.",
+    "timestamp": "00:10"
+  },
+  {
+    "speaker": "client",
+    "text": "Отлично.",
+    "timestamp": "00:20"
+  }
+]

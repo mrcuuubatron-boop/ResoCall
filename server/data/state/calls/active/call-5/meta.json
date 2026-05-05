@@ -1,0 +1,15 @@
+{
+  "id": "call-5",
+  "employeeId": "emp1",
+  "clientId": "cl2",
+  "date": "2026-05-03T15:30:00+00:00",
+  "duration": 240,
+  "sentiment": "neutral",
+  "scriptCompliance": 0,
+  "category": "Жалоба",
+  "isProcessed": false,
+  "errorReason": "Низкое качество аудио",
+  "audioUrl": "/api/calls/audio/call-5.mp3",
+  "deleted_at": null,
+  "deleted_by": null
+}

@@ -1,0 +1,22 @@
+[
+  {
+    "speaker": "operator",
+    "text": "Добрый день! Чем помочь?",
+    "timestamp": "00:00"
+  },
+  {
+    "speaker": "client",
+    "text": "Хочу узнать баланс.",
+    "timestamp": "00:05"
+  },
+  {
+    "speaker": "operator",
+    "text": "Конечно, проверяю.",
+    "timestamp": "00:10"
+  },
+  {
+    "speaker": "client",
+    "text": "Спасибо.",
+    "timestamp": "00:18"
+  }
+]
