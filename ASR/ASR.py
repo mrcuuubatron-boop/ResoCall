@@ -65,6 +65,23 @@ def transcribe_audio(
     return {"segments": segments, "full_text": full_text}
 
 
+class CallAnalyzer:
+    """Compatibility wrapper so server's external analyzer can import this module
+
+    Provides a simple `analyze(audio_path)` method returning a dict with
+    a `segments` list compatible with the server's expectations.
+    """
+
+    def __init__(self, asr_model_name: str = "base", sr: int = 16000, denoise: bool = True) -> None:
+        self.asr_model_name = asr_model_name
+        self.sr = sr
+        self.denoise = denoise
+
+    def analyze(self, audio_path: str) -> Dict[str, Any]:
+        # Reuse transcribe_audio to produce the same structure the server expects.
+        return transcribe_audio(audio_path, model_name=self.asr_model_name, denoise=self.denoise)
+
+
 def main():
     import argparse
 

@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+import json
 from datetime import datetime
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import FileResponse
 
-from app.security import get_current_user_any
+from app.security import get_current_user_any, get_current_user
+from app.schemas import UserContext
 
 router = APIRouter(prefix="/api", tags=["calls"])
 
@@ -79,3 +81,65 @@ def restore_call(request: Request, call_id: str, user=Depends(get_current_user_a
     if not request.app.state.ctx.calls.restore_call(call_id):
         raise HTTPException(status_code=404, detail="Call not found or not deleted")
     return {"status": "restored", "id": call_id, "restoredBy": user.login}
+
+
+@router.post("/calls/{call_id}/process")
+def process_call(request: Request, call_id: str, user: UserContext = Depends(get_current_user)):
+    """Trigger processing of a call's audio via the ML pipeline (background job).
+
+    The job writes the analysis result to `storage.result_path(call_id)`, updates
+    the call's `transcript.json` and `meta.json` in the calls state directory.
+    """
+    ctx = request.app.state.ctx
+    call = ctx.calls.get_call(call_id, include_deleted=False)
+    if call is None:
+        raise HTTPException(status_code=404, detail="Call not found")
+
+    # Resolve audio file path
+    audio_url = str(call.get("audioUrl") or "")
+    file_name = Path(audio_url).name if audio_url else f"{call_id}.mp3"
+    audio_path = str(ctx.calls._audio_path(file_name))
+    required_phrases = ctx.storage.read_default_script()
+
+    def _worker(cid: str) -> None:
+        try:
+            payload = ctx.get_pipeline().process(
+                task_id=cid, file_name=file_name, audio_path=audio_path, required_phrases=required_phrases
+            )
+
+            # write analysis result to storage/results
+            result_path = ctx.storage.result_path(cid)
+            ctx.storage.write_json(result_path, payload)
+
+            # update call directory: transcript and meta
+            call_dir = ctx.calls._call_dir(cid, deleted=False)
+            # build simple transcript entries from segments
+            transcript_entries = []
+            for seg in payload.get("segments", []):
+                start = int(seg.get("start", 0))
+                timestamp = f"{start//60:02d}:{start%60:02d}"
+                transcript_entries.append({
+                    "speaker": seg.get("speaker", "unknown"),
+                    "text": seg.get("text", ""),
+                    "timestamp": timestamp,
+                })
+
+            # update meta.json
+            meta_path = call_dir / "meta.json"
+            meta = {}
+            if meta_path.exists():
+                with meta_path.open("r", encoding="utf-8") as fp:
+                    meta = json.load(fp)
+
+            meta["isProcessed"] = True
+            meta["sentiment"] = payload.get("summary", {}).get("overall_sentiment")
+            meta["scriptCompliance"] = int(payload.get("script_check", {}).get("compliance_pct", 0))
+            meta["category"] = payload.get("summary", {}).get("category")
+
+            ctx.calls._write_json(meta_path, meta)
+            ctx.calls._write_json(call_dir / "transcript.json", transcript_entries)
+        except Exception as exc:
+            ctx.storage.write_error(call_id, str(exc))
+
+    ctx.tasks.submit(call_id, _worker)
+    return {"status": "processing", "id": call_id}

@@ -137,9 +137,21 @@ trap cleanup INT TERM EXIT
 echo "[start] Backend: http://127.0.0.1:8000"
 (
   cd "$SERVER_DIR"
-  exec "$BACKEND_PYTHON" -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+  # run Python in unbuffered mode so uvicorn logs appear immediately
+  exec env PYTHONUNBUFFERED=1 "$BACKEND_PYTHON" -u -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 ) &
 BACKEND_PID=$!
+
+# wait for backend to start listening on port 8000 (best-effort)
+for _ in $(seq 1 30); do
+  if ss -ltn 2>/dev/null | grep -q ':8000 '; then
+    break
+  fi
+  sleep 1
+done
+if ! ss -ltn 2>/dev/null | grep -q ':8000 '; then
+  echo "[warn] backend did not open port 8000 within timeout"
+fi
 
 echo "[start] Frontend: http://127.0.0.1:3000"
 (
