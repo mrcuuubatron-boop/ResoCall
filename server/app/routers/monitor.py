@@ -125,6 +125,10 @@ def monitor_docs() -> str:
                 grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
                 gap: 20px;
                 margin-bottom: 30px;
+                align-items: start;
+            }
+            .storage-card {
+                grid-column: span 2;
             }
             .card {
                 background: white;
@@ -207,6 +211,38 @@ def monitor_docs() -> str:
             .inline-actions button:disabled {
                 opacity: 0.6;
                 cursor: not-allowed;
+            }
+            .storage-auth-row {
+                display: flex;
+                gap: 8px;
+                width: 100%;
+                flex-wrap: wrap;
+            }
+            .storage-auth-row input {
+                flex: 1 1 220px;
+                min-width: 0;
+                padding: 8px;
+            }
+            .storage-auth-row button {
+                flex: 0 0 auto;
+                white-space: nowrap;
+            }
+            .storage-card table {
+                width: 100%;
+                table-layout: fixed;
+            }
+            .storage-card th,
+            .storage-card td {
+                overflow-wrap: anywhere;
+            }
+            .storage-card td:last-child {
+                white-space: nowrap;
+            }
+            .storage-card .download-file-btn,
+            .storage-card .delete-file-btn,
+            .storage-card .soft-delete-btn,
+            .storage-card .restore-call-btn {
+                white-space: nowrap;
             }
             .metric {
                 margin-bottom: 15px;
@@ -314,12 +350,12 @@ def monitor_docs() -> str:
                     <h2>Process Info</h2>
                     <div id="process-stats"></div>
                 </div>
-                <div class="card">
+                <div class="card storage-card">
                     <h2>Storage</h2>
                     <div class="metric" style="gap:8px; align-items:flex-start; flex-direction:column;">
-                        <div style="display:flex; gap:8px; width:100%;">
-                            <input id="auth-login" placeholder="login" style="flex:1; padding:8px;" />
-                            <input id="auth-password" type="password" placeholder="password" style="flex:1; padding:8px;" />
+                        <div class="storage-auth-row">
+                            <input id="auth-login" placeholder="login" />
+                            <input id="auth-password" type="password" placeholder="password" />
                             <button type="button" id="auth-apply">Apply</button>
                         </div>
                         <div style="font-size:12px; color:#555;">Storage/admin APIs now require auth (admin or engineer).</div>
