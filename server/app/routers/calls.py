@@ -7,8 +7,9 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import FileResponse
 
-from app.security import get_current_user_any, get_current_user
+from app.schemas import CallCreateRequest, ClientCreateRequest, EmployeeCreateRequest
 from app.schemas import UserContext
+from app.security import get_current_user, get_current_user_any
 
 router = APIRouter(prefix="/api", tags=["calls"])
 
@@ -24,9 +25,53 @@ def list_employees(request: Request):
     return request.app.state.ctx.calls.list_employees()
 
 
+@router.post("/employees")
+def create_employee(request: Request, payload: EmployeeCreateRequest, user=Depends(get_current_user_any)):
+    if user.role not in {"admin", "engineer"}:
+        raise HTTPException(status_code=403, detail="forbidden")
+    ctx = request.app.state.ctx
+    try:
+        employee = ctx.calls.create_employee(payload.name, payload.position, payload.hire_date)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"created": True, "employee": employee}
+
+
+@router.delete("/employees/{employee_id}")
+def delete_employee(request: Request, employee_id: str, user=Depends(get_current_user_any)):
+    if user.role not in {"admin", "engineer"}:
+        raise HTTPException(status_code=403, detail="forbidden")
+    ctx = request.app.state.ctx
+    if not ctx.calls.delete_employee(employee_id):
+        raise HTTPException(status_code=404, detail="employee not found")
+    return {"deleted": True, "id": employee_id}
+
+
 @router.get("/clients")
 def list_clients(request: Request):
     return request.app.state.ctx.calls.list_clients()
+
+
+@router.post("/clients")
+def create_client(request: Request, payload: ClientCreateRequest, user=Depends(get_current_user_any)):
+    if user.role not in {"admin", "engineer"}:
+        raise HTTPException(status_code=403, detail="forbidden")
+    ctx = request.app.state.ctx
+    try:
+        client = ctx.calls.create_client(payload.name, payload.phone)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"created": True, "client": client}
+
+
+@router.delete("/clients/{client_id}")
+def delete_client(request: Request, client_id: str, user=Depends(get_current_user_any)):
+    if user.role not in {"admin", "engineer"}:
+        raise HTTPException(status_code=403, detail="forbidden")
+    ctx = request.app.state.ctx
+    if not ctx.calls.delete_client(client_id):
+        raise HTTPException(status_code=404, detail="client not found")
+    return {"deleted": True, "id": client_id}
 
 
 @router.get("/calls")
@@ -41,6 +86,18 @@ def list_calls(
         to_dt=_parse_iso(to),
         include_deleted=include_deleted,
     )
+
+
+@router.post("/calls")
+def create_call(request: Request, payload: CallCreateRequest, user=Depends(get_current_user_any)):
+    if user.role not in {"admin", "engineer"}:
+        raise HTTPException(status_code=403, detail="forbidden")
+    ctx = request.app.state.ctx
+    try:
+        created = ctx.calls.create_call(payload.model_dump())
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"created": True, "call": created}
 
 
 @router.get("/calls/deleted")

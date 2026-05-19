@@ -5,6 +5,7 @@ import shutil
 from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
+from uuid import uuid4
 from threading import Lock
 from typing import Any
 
@@ -296,6 +297,89 @@ class CallStore:
 
     def list_clients(self) -> list[dict[str, Any]]:
         return deepcopy(self._read_json(self._clients_path, []))
+
+    def create_employee(self, name: str, position: str, hire_date: str | None = None) -> dict[str, Any]:
+        name = name.strip()
+        position = position.strip()
+        if not name or not position:
+            raise ValueError("employee name and position are required")
+        employees = self.list_employees()
+        employee = {
+            "id": f"emp-{uuid4().hex[:8]}",
+            "name": name,
+            "position": position,
+            "hireDate": hire_date.strip() if hire_date else datetime.now(timezone.utc).date().isoformat(),
+        }
+        employees.append(employee)
+        self._write_json(self._employees_path, employees)
+        return deepcopy(employee)
+
+    def delete_employee(self, employee_id: str) -> bool:
+        employees = self.list_employees()
+        filtered = [employee for employee in employees if str(employee.get("id")) != employee_id]
+        if len(filtered) == len(employees):
+            return False
+        self._write_json(self._employees_path, filtered)
+        return True
+
+    def create_client(self, name: str, phone: str | None = None) -> dict[str, Any]:
+        name = name.strip()
+        if not name:
+            raise ValueError("client name is required")
+        clients = self.list_clients()
+        client = {
+            "id": f"cl-{uuid4().hex[:8]}",
+            "name": name,
+            "phone": phone.strip() if phone else "",
+        }
+        clients.append(client)
+        self._write_json(self._clients_path, clients)
+        return deepcopy(client)
+
+    def delete_client(self, client_id: str) -> bool:
+        clients = self.list_clients()
+        filtered = [client for client in clients if str(client.get("id")) != client_id]
+        if len(filtered) == len(clients):
+            return False
+        self._write_json(self._clients_path, filtered)
+        return True
+
+    def create_call(self, call: dict[str, Any]) -> dict[str, Any]:
+        call_id = str(call.get("call_id") or call.get("id") or f"call-{uuid4().hex[:8]}")
+        call_dir = self._call_dir(call_id, deleted=False)
+        if call_dir.exists() or self._call_dir(call_id, deleted=True).exists():
+            raise ValueError(f"call already exists: {call_id}")
+
+        employee_id = str(call.get("employee_id") or call.get("employeeId") or "").strip()
+        client_id = str(call.get("client_id") or call.get("clientId") or "").strip()
+        if not employee_id or not client_id:
+            raise ValueError("employee_id and client_id are required")
+
+        transcript = call.get("transcript") or []
+        if not isinstance(transcript, list):
+            raise ValueError("transcript must be a list")
+
+        meta = {
+            "id": call_id,
+            "employeeId": employee_id,
+            "clientId": client_id,
+            "date": str(call.get("date") or datetime.now(timezone.utc).isoformat()),
+            "duration": int(call.get("duration") or 0),
+            "sentiment": str(call.get("sentiment") or "neutral"),
+            "scriptCompliance": int(call.get("script_compliance") or call.get("scriptCompliance") or 0),
+            "category": str(call.get("category") or "Не определено"),
+            "isProcessed": bool(call.get("is_processed") if "is_processed" in call else call.get("isProcessed", False)),
+            "errorReason": call.get("error_reason") if "error_reason" in call else call.get("errorReason"),
+            "audioUrl": str(call.get("audio_url") or call.get("audioUrl") or f"/api/calls/audio/{call_id}.mp3"),
+            "deleted_at": None,
+            "deleted_by": None,
+        }
+
+        call_dir.mkdir(parents=True, exist_ok=False)
+        self._write_json(call_dir / "meta.json", meta)
+        self._write_json(call_dir / "transcript.json", transcript)
+        self._ensure_audio_stub(call_id)
+        return self.get_call(call_id, include_deleted=False) or meta
 
     def list_calls(
         self,

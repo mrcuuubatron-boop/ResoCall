@@ -80,6 +80,38 @@ class UserContext(BaseModel):
     role: str
 
 
+class UserCreateRequest(BaseModel):
+    login: str
+    password: str
+    role: str
+
+
+class EmployeeCreateRequest(BaseModel):
+    name: str
+    position: str
+    hire_date: str | None = None
+
+
+class ClientCreateRequest(BaseModel):
+    name: str
+    phone: str | None = None
+
+
+class CallCreateRequest(BaseModel):
+    employee_id: str
+    client_id: str
+    date: str | None = None
+    duration: int = 0
+    sentiment: str = "neutral"
+    script_compliance: int = 0
+    category: str = "Не определено"
+    is_processed: bool = False
+    error_reason: str | None = None
+    audio_url: str | None = None
+    transcript: list[dict[str, Any]] = Field(default_factory=list)
+    call_id: str | None = None
+
+
 class ErrorOut(BaseModel):
     detail: str
     context: dict[str, Any] | None = None

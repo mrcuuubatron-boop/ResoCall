@@ -114,6 +114,23 @@ class Database:
             return []
         return [{"login": r[0], "role": r[1]} for r in rows]
 
+    def create_user(self, login: str, password: str, role: str) -> bool:
+        if login in self._demo_users:
+            return False
+
+        try:
+            with self._connect_pg() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "INSERT INTO users(login, password, role) VALUES (%s, %s, %s) ON CONFLICT (login) DO NOTHING RETURNING login",
+                        (login, password, role),
+                    )
+                    created = cur.fetchone() is not None
+                conn.commit()
+            return created
+        except Exception:
+            return False
+
     def record_upload(self, name: str, area: str, size: int, uploader: str | None = None) -> None:
         try:
             with self._connect_pg() as conn:

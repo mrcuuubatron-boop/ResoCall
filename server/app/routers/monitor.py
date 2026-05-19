@@ -67,6 +67,11 @@ def monitor(request: Request) -> JSONResponse:
         "recent_requests": list(reversed(requests))[:200],
         "tasks": tasks_info,
         "system": sys_info,
+        "database": {
+            "employees": len(ctx.calls.list_employees()) if ctx is not None else 0,
+            "clients": len(ctx.calls.list_clients()) if ctx is not None else 0,
+            "calls": len(ctx.calls.list_calls(include_deleted=True)) if ctx is not None else 0,
+        },
     }
     return JSONResponse(payload)
 
@@ -80,7 +85,7 @@ def monitor_docs() -> str:
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>ResoCall Monitor</title>
+        <title>ResoCall Server Monitor</title>
         <style>
             * {
                 margin: 0;
@@ -89,9 +94,13 @@ def monitor_docs() -> str:
             }
             body {
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                background:
+                    radial-gradient(circle at top left, rgba(102, 126, 234, 0.24), transparent 30%),
+                    radial-gradient(circle at top right, rgba(14, 165, 233, 0.18), transparent 26%),
+                    linear-gradient(135deg, #0f172a 0%, #172554 45%, #312e81 100%);
                 min-height: 100vh;
                 padding: 20px;
+                color: #0f172a;
             }
             .container {
                 max-width: 1400px;
@@ -105,6 +114,7 @@ def monitor_docs() -> str:
             .header h1 {
                 font-size: 2.5em;
                 margin-bottom: 10px;
+                letter-spacing: -0.03em;
             }
             .header p {
                 font-size: 1.1em;
@@ -118,20 +128,85 @@ def monitor_docs() -> str:
             }
             .card {
                 background: white;
-                border-radius: 12px;
-                padding: 25px;
-                box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-                transition: transform 0.3s ease;
+                border-radius: 18px;
+                padding: 24px;
+                box-shadow: 0 16px 40px rgba(15, 23, 42, 0.18);
+                transition: transform 0.25s ease, box-shadow 0.25s ease;
+                border: 1px solid rgba(148, 163, 184, 0.18);
             }
             .card:hover {
-                transform: translateY(-5px);
+                transform: translateY(-4px);
+                box-shadow: 0 22px 48px rgba(15, 23, 42, 0.24);
             }
             .card h2 {
-                color: #667eea;
+                color: #0f172a;
                 margin-bottom: 20px;
                 font-size: 1.3em;
-                border-bottom: 2px solid #667eea;
+                border-bottom: 2px solid #1d4ed8;
                 padding-bottom: 10px;
+            }
+            .subsection {
+                margin-bottom: 18px;
+                padding: 16px;
+                border: 1px solid #e2e8f0;
+                border-radius: 14px;
+                background: #f8fafc;
+            }
+            .subsection:last-child {
+                margin-bottom: 0;
+            }
+            .subsection h3 {
+                font-size: 0.98em;
+                color: #0f172a;
+                margin-bottom: 12px;
+            }
+            .inline-form {
+                display: grid;
+                gap: 8px;
+                grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+                margin-bottom: 10px;
+            }
+            .inline-form input,
+            .inline-form select,
+            .inline-form textarea {
+                width: 100%;
+                padding: 9px 10px;
+                border-radius: 10px;
+                border: 1px solid #cbd5e1;
+                background: white;
+                color: #0f172a;
+            }
+            .inline-form textarea {
+                min-height: 96px;
+                grid-column: 1 / -1;
+                resize: vertical;
+            }
+            .inline-actions {
+                display: flex;
+                gap: 8px;
+                align-items: center;
+                flex-wrap: wrap;
+                margin-top: 4px;
+            }
+            .inline-actions button {
+                padding: 8px 12px;
+                border-radius: 10px;
+                border: 0;
+                background: #1d4ed8;
+                color: white;
+                font-weight: 600;
+                cursor: pointer;
+            }
+            .inline-actions button.secondary {
+                background: #e2e8f0;
+                color: #0f172a;
+            }
+            .inline-actions button.danger {
+                background: #dc2626;
+            }
+            .inline-actions button:disabled {
+                opacity: 0.6;
+                cursor: not-allowed;
             }
             .metric {
                 margin-bottom: 15px;
@@ -213,30 +288,34 @@ def monitor_docs() -> str:
                 padding: 20px;
                 font-style: italic;
             }
+            .muted {
+                color: #64748b;
+                font-size: 0.9em;
+            }
         </style>
     </head>
     <body>
         <div class="container">
             <div class="header">
-                <h1>🎯 ResoCall Monitor</h1>
+                <h1>ResoCall Server Monitor</h1>
                 <p>Real-time server metrics & request tracking</p>
             </div>
 
             <div class="grid">
                 <div class="card">
-                    <h2>📊 Tasks Queue</h2>
+                    <h2>Tasks Queue</h2>
                     <div id="tasks-stats"></div>
                 </div>
                 <div class="card">
-                    <h2>💻 System Load</h2>
+                    <h2>System Load</h2>
                     <div id="system-stats"></div>
                 </div>
                 <div class="card">
-                    <h2>⚙️ Process Info</h2>
+                    <h2>Process Info</h2>
                     <div id="process-stats"></div>
                 </div>
                 <div class="card">
-                    <h2>🗄️ Storage</h2>
+                    <h2>Storage</h2>
                     <div class="metric" style="gap:8px; align-items:flex-start; flex-direction:column;">
                         <div style="display:flex; gap:8px; width:100%;">
                             <input id="auth-login" placeholder="login" style="flex:1; padding:8px;" />
@@ -265,10 +344,64 @@ def monitor_docs() -> str:
                         <div id="calls-meta"></div>
                     </div>
                 </div>
+                <div class="card">
+                    <h2>Database Operations</h2>
+
+                    <div class="subsection">
+                        <h3>Workers</h3>
+                        <div class="inline-form">
+                            <input id="employee-name" placeholder="Full name" />
+                            <input id="employee-position" placeholder="Position" />
+                            <input id="employee-hire-date" placeholder="Hire date (YYYY-MM-DD)" />
+                        </div>
+                        <div class="inline-actions">
+                            <button type="button" id="employee-add">Create worker</button>
+                            <span class="muted">Add or remove employees without leaving the monitor.</span>
+                        </div>
+                        <div id="employees-list"></div>
+                    </div>
+
+                    <div class="subsection">
+                        <h3>Counterparties</h3>
+                        <div class="inline-form">
+                            <input id="client-name" placeholder="Company or person name" />
+                            <input id="client-phone" placeholder="Phone or contact" />
+                        </div>
+                        <div class="inline-actions">
+                            <button type="button" id="client-add">Create counterparty</button>
+                            <span class="muted">This list is used by the call archive and future imports.</span>
+                        </div>
+                        <div id="clients-list"></div>
+                    </div>
+
+                    <div class="subsection">
+                        <h3>New Call Record</h3>
+                        <div class="inline-form">
+                            <select id="call-employee"></select>
+                            <select id="call-client"></select>
+                            <input id="call-date" placeholder="2026-05-19T12:30:00+00:00" />
+                            <input id="call-duration" type="number" min="0" placeholder="Duration, sec" />
+                            <input id="call-category" placeholder="Category" />
+                            <input id="call-sentiment" placeholder="positive / neutral / negative" />
+                            <input id="call-compliance" type="number" min="0" max="100" placeholder="Script compliance" />
+                            <input id="call-audio-url" placeholder="/api/calls/audio/call-xxx.mp3" />
+                            <textarea id="call-transcript" placeholder='Transcript JSON array, e.g. [{"speaker":"operator","text":"...","timestamp":"00:00"}]'></textarea>
+                        </div>
+                        <div class="inline-actions">
+                            <button type="button" id="call-create">Create call history</button>
+                            <button type="button" class="secondary" id="call-reset">Reset</button>
+                            <label class="muted" style="display:flex; align-items:center; gap:6px;">
+                                <input id="call-processed" type="checkbox" />
+                                Mark as processed
+                            </label>
+                        </div>
+                        <div class="muted" style="margin-top:8px;">This endpoint is ready for automatic ML imports once the model starts writing call results.</div>
+                    </div>
+                </div>
             </div>
 
             <div class="requests-section">
-                <h2>📝 Recent Requests (auto-refresh every 2s)</h2>
+                <h2>Recent Requests (auto-refresh every 2s)</h2>
                 <div id="requests-table"></div>
             </div>
 
@@ -292,6 +425,31 @@ def monitor_docs() -> str:
                 return { 'Authorization': 'Basic ' + basic };
             }
 
+            function fillSelectOptions(selectId, items, placeholder) {
+                const select = document.getElementById(selectId);
+                if (!select) return;
+                select.innerHTML = '';
+                if (placeholder) {
+                    const opt = document.createElement('option');
+                    opt.value = '';
+                    opt.textContent = placeholder;
+                    select.appendChild(opt);
+                }
+                items.forEach(item => {
+                    const opt = document.createElement('option');
+                    opt.value = item.id;
+                    opt.textContent = `${item.name} (${item.id})`;
+                    select.appendChild(opt);
+                });
+            }
+
+            function safeJsonParse(value) {
+                if (!value || !value.trim()) return [];
+                const parsed = JSON.parse(value);
+                if (!Array.isArray(parsed)) throw new Error('Transcript must be a JSON array');
+                return parsed;
+            }
+
             document.getElementById('auth-apply').addEventListener('click', () => {
                 monitorAuth.login = document.getElementById('auth-login').value.trim();
                 monitorAuth.password = document.getElementById('auth-password').value;
@@ -299,7 +457,125 @@ def monitor_docs() -> str:
                 localStorage.setItem('monitor_password', monitorAuth.password);
                 updateStorage();
                 updateUploadsMeta();
+                updateEmployees();
+                updateClients();
             });
+
+            document.getElementById('employee-add').addEventListener('click', async () => {
+                const name = document.getElementById('employee-name').value.trim();
+                const position = document.getElementById('employee-position').value.trim();
+                const hire_date = document.getElementById('employee-hire-date').value.trim();
+                if (!name || !position) {
+                    alert('Worker name and position are required');
+                    return;
+                }
+                try {
+                    const res = await fetch('/api/employees', {
+                        method: 'POST',
+                        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name, position, hire_date: hire_date || null }),
+                    });
+                    if (!res.ok) {
+                        const detail = await res.json().catch(() => ({}));
+                        throw new Error(detail.detail || 'create employee failed');
+                    }
+                    document.getElementById('employee-name').value = '';
+                    document.getElementById('employee-position').value = '';
+                    document.getElementById('employee-hire-date').value = '';
+                    updateEmployees();
+                } catch (err) {
+                    alert(err instanceof Error ? err.message : 'Create employee failed');
+                }
+            });
+
+            document.getElementById('client-add').addEventListener('click', async () => {
+                const name = document.getElementById('client-name').value.trim();
+                const phone = document.getElementById('client-phone').value.trim();
+                if (!name) {
+                    alert('Counterparty name is required');
+                    return;
+                }
+                try {
+                    const res = await fetch('/api/clients', {
+                        method: 'POST',
+                        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name, phone: phone || null }),
+                    });
+                    if (!res.ok) {
+                        const detail = await res.json().catch(() => ({}));
+                        throw new Error(detail.detail || 'create client failed');
+                    }
+                    document.getElementById('client-name').value = '';
+                    document.getElementById('client-phone').value = '';
+                    updateClients();
+                } catch (err) {
+                    alert(err instanceof Error ? err.message : 'Create client failed');
+                }
+            });
+
+            document.getElementById('call-create').addEventListener('click', async () => {
+                const employee_id = document.getElementById('call-employee').value;
+                const client_id = document.getElementById('call-client').value;
+                const date = document.getElementById('call-date').value.trim();
+                const duration = Number(document.getElementById('call-duration').value || 0);
+                const category = document.getElementById('call-category').value.trim();
+                const sentiment = document.getElementById('call-sentiment').value.trim() || 'neutral';
+                const script_compliance = Number(document.getElementById('call-compliance').value || 0);
+                const audio_url = document.getElementById('call-audio-url').value.trim();
+                const is_processed = document.getElementById('call-processed').checked;
+                let transcript = [];
+                try {
+                    transcript = safeJsonParse(document.getElementById('call-transcript').value);
+                } catch (err) {
+                    alert(err instanceof Error ? err.message : 'Invalid transcript JSON');
+                    return;
+                }
+                if (!employee_id || !client_id) {
+                    alert('Select employee and counterparty first');
+                    return;
+                }
+                try {
+                    const res = await fetch('/api/calls', {
+                        method: 'POST',
+                        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            employee_id,
+                            client_id,
+                            date: date || null,
+                            duration,
+                            sentiment,
+                            script_compliance,
+                            category: category || 'Не определено',
+                            is_processed,
+                            audio_url: audio_url || null,
+                            transcript,
+                        }),
+                    });
+                    if (!res.ok) {
+                        const detail = await res.json().catch(() => ({}));
+                        throw new Error(detail.detail || 'create call failed');
+                    }
+                    resetCallForm();
+                    updateCallsMeta();
+                } catch (err) {
+                    alert(err instanceof Error ? err.message : 'Create call failed');
+                }
+            });
+
+            document.getElementById('call-reset').addEventListener('click', () => {
+                resetCallForm();
+            });
+
+            function resetCallForm() {
+                document.getElementById('call-date').value = '';
+                document.getElementById('call-duration').value = '';
+                document.getElementById('call-category').value = '';
+                document.getElementById('call-sentiment').value = 'neutral';
+                document.getElementById('call-compliance').value = '';
+                document.getElementById('call-audio-url').value = '';
+                document.getElementById('call-transcript').value = '';
+                document.getElementById('call-processed').checked = false;
+            }
 
             async function updateMonitor() {
                 try {
@@ -372,6 +648,8 @@ def monitor_docs() -> str:
                     // Update storage listing
                     updateStorage();
                     updateUploadsMeta();
+                    updateEmployees();
+                    updateClients();
 
                     // Update requests table
                     const requests = data.recent_requests || [];
@@ -586,9 +864,98 @@ def monitor_docs() -> str:
                 }
             }
 
+            async function updateEmployees() {
+                try {
+                    const res = await fetch('/api/employees', { headers: getAuthHeaders() });
+                    if (!res.ok) {
+                        document.getElementById('employees-list').innerHTML = '<div class="empty">Auth required for workers</div>';
+                        return;
+                    }
+                    const data = await res.json();
+                    const employees = Array.isArray(data) ? data : (data.employees || []);
+                    fillSelectOptions('call-employee', employees, 'Select worker');
+                    if (employees.length === 0) {
+                        document.getElementById('employees-list').innerHTML = '<div class="empty">No workers</div>';
+                        return;
+                    }
+                    let html = '<table><thead><tr><th>Name</th><th>Position</th><th>Hire date</th><th>Action</th></tr></thead><tbody>';
+                    employees.forEach(employee => {
+                        html += `<tr><td>${employee.name}</td><td>${employee.position || '-'}</td><td>${employee.hireDate || '-'}</td><td><button type="button" class="delete-employee-btn danger" data-id="${employee.id}">Delete</button></td></tr>`;
+                    });
+                    html += '</tbody></table>';
+                    document.getElementById('employees-list').innerHTML = html;
+
+                    document.querySelectorAll('.delete-employee-btn').forEach(btn => {
+                        btn.addEventListener('click', async () => {
+                            const id = btn.getAttribute('data-id');
+                            if (!id) return;
+                            if (!confirm('Delete worker ' + id + '?')) return;
+                            try {
+                                const res = await fetch('/api/employees/' + encodeURIComponent(id), {
+                                    method: 'DELETE',
+                                    headers: getAuthHeaders(),
+                                });
+                                if (!res.ok) throw new Error('delete failed');
+                                updateEmployees();
+                            } catch (err) {
+                                alert('Delete worker failed');
+                            }
+                        });
+                    });
+                } catch (err) {
+                    console.error('employees error', err);
+                    document.getElementById('employees-list').innerHTML = '<div class="empty">Error loading workers</div>';
+                }
+            }
+
+            async function updateClients() {
+                try {
+                    const res = await fetch('/api/clients', { headers: getAuthHeaders() });
+                    if (!res.ok) {
+                        document.getElementById('clients-list').innerHTML = '<div class="empty">Auth required for counterparties</div>';
+                        return;
+                    }
+                    const data = await res.json();
+                    const clients = Array.isArray(data) ? data : (data.clients || []);
+                    fillSelectOptions('call-client', clients, 'Select counterparty');
+                    if (clients.length === 0) {
+                        document.getElementById('clients-list').innerHTML = '<div class="empty">No counterparties</div>';
+                        return;
+                    }
+                    let html = '<table><thead><tr><th>Name</th><th>Phone</th><th>Action</th></tr></thead><tbody>';
+                    clients.forEach(client => {
+                        html += `<tr><td>${client.name}</td><td>${client.phone || '-'}</td><td><button type="button" class="delete-client-btn danger" data-id="${client.id}">Delete</button></td></tr>`;
+                    });
+                    html += '</tbody></table>';
+                    document.getElementById('clients-list').innerHTML = html;
+
+                    document.querySelectorAll('.delete-client-btn').forEach(btn => {
+                        btn.addEventListener('click', async () => {
+                            const id = btn.getAttribute('data-id');
+                            if (!id) return;
+                            if (!confirm('Delete counterparty ' + id + '?')) return;
+                            try {
+                                const res = await fetch('/api/clients/' + encodeURIComponent(id), {
+                                    method: 'DELETE',
+                                    headers: getAuthHeaders(),
+                                });
+                                if (!res.ok) throw new Error('delete failed');
+                                updateClients();
+                            } catch (err) {
+                                alert('Delete counterparty failed');
+                            }
+                        });
+                    });
+                } catch (err) {
+                    console.error('clients error', err);
+                    document.getElementById('clients-list').innerHTML = '<div class="empty">Error loading counterparties</div>';
+                }
+            }
+
             document.getElementById('upload-btn').addEventListener('click', async () => {
                 const inp = document.getElementById('upload-file');
-                const area = document.getElementById('upload-area').value;
+            updateEmployees();
+            updateClients();
                 if (!inp.files || inp.files.length === 0) return alert('Choose a file');
                 const file = inp.files[0];
                 const fd = new FormData();
@@ -609,6 +976,7 @@ def monitor_docs() -> str:
             });
 
             updateCallsMeta();
+            updateParticipants();
         </script>
     </body>
     </html>

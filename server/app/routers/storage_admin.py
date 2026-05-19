@@ -4,7 +4,7 @@ from typing import Any
 from fastapi import APIRouter, Request, UploadFile, File, Form, HTTPException, Depends
 from fastapi.responses import JSONResponse, FileResponse
 from app.security import get_current_user_any
-from app.schemas import UserContext
+from app.schemas import UserContext, UserCreateRequest
 
 router = APIRouter(prefix="/api/v1", tags=["storage"])
 
@@ -152,6 +152,37 @@ def list_users(request: Request, current_user: UserContext = Depends(get_current
     except Exception:
         users = []
     return JSONResponse({"users": users})
+
+
+@router.post("/admin/users")
+def create_user(
+    payload: UserCreateRequest,
+    request: Request,
+    current_user: UserContext = Depends(get_current_user_any),
+) -> JSONResponse:
+    ctx = getattr(request.app.state, "ctx", None)
+    if ctx is None:
+        raise HTTPException(status_code=500, detail="app context missing")
+    if current_user.role not in {"admin", "engineer"}:
+        raise HTTPException(status_code=403, detail="forbidden")
+
+    login = payload.login.strip()
+    password = payload.password.strip()
+    role = payload.role.strip()
+    if not login or not password:
+        raise HTTPException(status_code=400, detail="login and password are required")
+    if role not in {"admin", "engineer", "user"}:
+        raise HTTPException(status_code=400, detail="invalid role")
+
+    created = False
+    try:
+        created = ctx.db.create_user(login, password, role)
+    except Exception:
+        created = False
+    if not created:
+        raise HTTPException(status_code=409, detail="user already exists")
+
+    return JSONResponse({"created": True, "user": {"login": login, "role": role}}, status_code=201)
 
 
 @router.get("/storage/uploads")
