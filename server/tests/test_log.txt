@@ -1,0 +1,217 @@
+2026-05-22 16:50:06,848 INFO START test_simple_sentiment_positive
+2026-05-22 16:50:06,850 INFO label=positive, score=0.7
+2026-05-22 16:50:06,851 INFO END test_simple_sentiment_positive
+2026-05-22 16:50:06,854 INFO START test_simple_sentiment_negative
+2026-05-22 16:50:06,856 INFO label=negative, score=0.7
+2026-05-22 16:50:06,858 INFO END test_simple_sentiment_negative
+2026-05-22 16:50:06,860 INFO START test_classify_issue_billing
+2026-05-22 16:50:06,861 INFO cat=consultation
+2026-05-22 16:50:06,862 INFO END test_classify_issue_billing
+2026-05-22 16:50:06,864 INFO START test_classify_issue_tech
+2026-05-22 16:50:06,865 INFO cat=technical_support
+2026-05-22 16:50:06,866 INFO END test_classify_issue_tech
+2026-05-22 16:50:06,869 INFO START test_classify_issue_other
+2026-05-22 16:50:06,870 INFO cat=consultation
+2026-05-22 16:50:06,874 INFO END test_classify_issue_other
+2026-05-22 16:50:06,877 INFO START test_script_check_greeting
+2026-05-22 16:50:06,879 INFO found_phrases=['добрый день'], compliance_pct=50.0
+2026-05-22 16:50:06,880 INFO END test_script_check_greeting
+2026-05-22 16:50:06,882 INFO START test_script_check_greeting_missing
+2026-05-22 16:50:06,883 INFO found_phrases=[], compliance_pct=0.0
+2026-05-22 16:50:06,884 INFO END test_script_check_greeting_missing
+2026-05-22 16:50:06,888 INFO START test_priority_high
+2026-05-22 16:50:06,890 INFO END test_priority_high
+2026-05-22 16:50:06,892 INFO START test_priority_low
+2026-05-22 16:50:06,895 INFO END test_priority_low
+2026-05-22 16:50:06,897 INFO START test_create_and_delete_employee
+2026-05-22 16:50:06,982 INFO END test_create_and_delete_employee
+2026-05-22 16:50:06,983 INFO START test_create_and_delete_client
+2026-05-22 16:50:07,060 INFO END test_create_and_delete_client
+2026-05-22 16:50:07,062 INFO START test_create_and_get_call
+2026-05-22 16:50:07,168 INFO END test_create_and_get_call
+2026-05-22 16:52:19,457 INFO START test_simple_sentiment_positive
+2026-05-22 16:52:19,459 INFO label=positive, score=0.7
+2026-05-22 16:52:19,460 INFO END test_simple_sentiment_positive
+2026-05-22 16:52:19,466 INFO START test_simple_sentiment_negative
+2026-05-22 16:52:19,468 INFO label=negative, score=0.7
+2026-05-22 16:52:19,469 INFO END test_simple_sentiment_negative
+2026-05-22 16:52:19,481 INFO START test_classify_issue_billing
+2026-05-22 16:52:19,484 INFO cat=consultation
+2026-05-22 16:52:19,485 INFO END test_classify_issue_billing
+2026-05-22 16:52:19,488 INFO START test_classify_issue_tech
+2026-05-22 16:52:19,493 INFO cat=technical_support
+2026-05-22 16:52:19,494 INFO END test_classify_issue_tech
+2026-05-22 16:52:19,500 INFO START test_classify_issue_other
+2026-05-22 16:52:19,501 INFO cat=consultation
+2026-05-22 16:52:19,502 INFO END test_classify_issue_other
+2026-05-22 16:52:19,505 INFO START test_script_check_greeting
+2026-05-22 16:52:19,507 INFO found_phrases=['добрый день'], compliance_pct=50.0
+2026-05-22 16:52:19,508 INFO END test_script_check_greeting
+2026-05-22 16:52:19,511 INFO START test_script_check_greeting_missing
+2026-05-22 16:52:19,513 INFO found_phrases=[], compliance_pct=0.0
+2026-05-22 16:52:19,515 INFO END test_script_check_greeting_missing
+2026-05-22 16:52:19,518 INFO START test_priority_high
+2026-05-22 16:52:19,520 INFO END test_priority_high
+2026-05-22 16:52:19,524 INFO START test_priority_low
+2026-05-22 16:52:19,526 INFO END test_priority_low
+2026-05-22 16:52:19,529 INFO START test_create_and_delete_employee
+2026-05-22 16:52:19,616 INFO END test_create_and_delete_employee
+2026-05-22 16:52:19,618 INFO START test_create_and_delete_client
+2026-05-22 16:52:19,689 INFO END test_create_and_delete_client
+2026-05-22 16:52:19,691 INFO START test_create_and_get_call
+2026-05-22 16:52:19,797 INFO END test_create_and_get_call
+2026-05-22 16:53:29,079 INFO START test_simple_sentiment_positive
+2026-05-22 16:53:29,081 INFO label=positive, score=0.7
+2026-05-22 16:53:29,082 INFO END test_simple_sentiment_positive
+2026-05-22 16:53:29,086 INFO START test_simple_sentiment_negative
+2026-05-22 16:53:29,088 INFO label=negative, score=0.7
+2026-05-22 16:53:29,090 INFO END test_simple_sentiment_negative
+2026-05-22 16:53:29,093 INFO START test_classify_issue_billing
+2026-05-22 16:53:29,099 INFO cat=consultation
+2026-05-22 16:53:29,102 INFO END test_classify_issue_billing
+2026-05-22 16:53:29,105 INFO START test_classify_issue_tech
+2026-05-22 16:53:29,106 INFO cat=technical_support
+2026-05-22 16:53:29,107 INFO END test_classify_issue_tech
+2026-05-22 16:53:29,109 INFO START test_classify_issue_other
+2026-05-22 16:53:29,111 INFO cat=consultation
+2026-05-22 16:53:29,112 INFO END test_classify_issue_other
+2026-05-22 16:53:29,114 INFO START test_script_check_greeting
+2026-05-22 16:53:29,116 INFO found_phrases=['добрый день'], compliance_pct=50.0
+2026-05-22 16:53:29,120 INFO END test_script_check_greeting
+2026-05-22 16:53:29,123 INFO START test_script_check_greeting_missing
+2026-05-22 16:53:29,125 INFO found_phrases=[], compliance_pct=0.0
+2026-05-22 16:53:29,126 INFO END test_script_check_greeting_missing
+2026-05-22 16:53:29,129 INFO START test_priority_high
+2026-05-22 16:53:29,132 INFO END test_priority_high
+2026-05-22 16:53:29,135 INFO START test_priority_low
+2026-05-22 16:53:29,138 INFO END test_priority_low
+2026-05-22 16:53:29,140 INFO START test_create_and_delete_employee
+2026-05-22 16:53:29,246 INFO END test_create_and_delete_employee
+2026-05-22 16:53:29,248 INFO START test_create_and_delete_client
+2026-05-22 16:53:29,321 INFO END test_create_and_delete_client
+2026-05-22 16:53:29,323 INFO START test_create_and_get_call
+2026-05-22 16:53:29,435 INFO END test_create_and_get_call
+2026-05-22 16:54:39,948 INFO START test_simple_sentiment_positive
+2026-05-22 16:54:39,949 INFO label=positive, score=0.7
+2026-05-22 16:54:39,950 INFO END test_simple_sentiment_positive
+2026-05-22 16:54:39,956 INFO START test_simple_sentiment_negative
+2026-05-22 16:54:39,958 INFO label=negative, score=0.7
+2026-05-22 16:54:39,959 INFO END test_simple_sentiment_negative
+2026-05-22 16:54:39,962 INFO START test_classify_issue_billing
+2026-05-22 16:54:39,963 INFO cat=consultation
+2026-05-22 16:54:39,964 INFO END test_classify_issue_billing
+2026-05-22 16:54:39,965 INFO START test_classify_issue_tech
+2026-05-22 16:54:39,966 INFO cat=technical_support
+2026-05-22 16:54:39,967 INFO END test_classify_issue_tech
+2026-05-22 16:54:39,975 INFO START test_classify_issue_other
+2026-05-22 16:54:39,977 INFO cat=consultation
+2026-05-22 16:54:39,978 INFO END test_classify_issue_other
+2026-05-22 16:54:39,980 INFO START test_script_check_greeting
+2026-05-22 16:54:39,981 INFO found_phrases=['добрый день'], compliance_pct=50.0
+2026-05-22 16:54:39,982 INFO END test_script_check_greeting
+2026-05-22 16:54:39,984 INFO START test_script_check_greeting_missing
+2026-05-22 16:54:39,985 INFO found_phrases=[], compliance_pct=0.0
+2026-05-22 16:54:39,986 INFO END test_script_check_greeting_missing
+2026-05-22 16:54:39,990 INFO START test_priority_high
+2026-05-22 16:54:39,993 INFO END test_priority_high
+2026-05-22 16:54:39,995 INFO START test_priority_low
+2026-05-22 16:54:39,997 INFO END test_priority_low
+2026-05-22 16:54:39,999 INFO START test_create_and_delete_employee
+2026-05-22 16:54:40,110 INFO END test_create_and_delete_employee
+2026-05-22 16:54:40,113 INFO START test_create_and_delete_client
+2026-05-22 16:54:40,183 INFO END test_create_and_delete_client
+2026-05-22 16:54:40,185 INFO START test_create_and_get_call
+2026-05-22 16:54:40,281 INFO END test_create_and_get_call
+2026-05-22 17:04:52,756 INFO START test_simple_sentiment_positive
+2026-05-22 17:04:52,757 INFO label=positive, score=0.7
+2026-05-22 17:04:52,758 INFO END test_simple_sentiment_positive
+2026-05-22 17:04:52,762 INFO START test_simple_sentiment_negative
+2026-05-22 17:04:52,764 INFO label=negative, score=0.7
+2026-05-22 17:04:52,765 INFO END test_simple_sentiment_negative
+2026-05-22 17:04:52,768 INFO START test_classify_issue_billing
+2026-05-22 17:04:52,769 INFO cat=consultation
+2026-05-22 17:04:52,770 INFO END test_classify_issue_billing
+2026-05-22 17:04:52,772 INFO START test_classify_issue_tech
+2026-05-22 17:04:52,773 INFO cat=technical_support
+2026-05-22 17:04:52,774 INFO END test_classify_issue_tech
+2026-05-22 17:04:52,777 INFO START test_classify_issue_other
+2026-05-22 17:04:52,783 INFO cat=consultation
+2026-05-22 17:04:52,784 INFO END test_classify_issue_other
+2026-05-22 17:04:52,787 INFO START test_script_check_greeting
+2026-05-22 17:04:52,789 INFO found_phrases=['добрый день'], compliance_pct=50.0
+2026-05-22 17:04:52,790 INFO END test_script_check_greeting
+2026-05-22 17:04:52,792 INFO START test_script_check_greeting_missing
+2026-05-22 17:04:52,793 INFO found_phrases=[], compliance_pct=0.0
+2026-05-22 17:04:52,794 INFO END test_script_check_greeting_missing
+2026-05-22 17:04:52,796 INFO START test_priority_high
+2026-05-22 17:04:52,798 INFO END test_priority_high
+2026-05-22 17:04:52,800 INFO START test_priority_low
+2026-05-22 17:04:52,802 INFO END test_priority_low
+2026-05-22 17:04:52,805 INFO START test_create_and_delete_employee
+2026-05-22 17:04:52,917 INFO END test_create_and_delete_employee
+2026-05-22 17:04:52,919 INFO START test_create_and_delete_client
+2026-05-22 17:04:52,989 INFO END test_create_and_delete_client
+2026-05-22 17:04:52,991 INFO START test_create_and_get_call
+2026-05-22 17:04:53,093 INFO END test_create_and_get_call
+2026-05-22 17:06:09,916 INFO START test_simple_sentiment_positive
+2026-05-22 17:06:09,917 INFO label=positive, score=0.7
+2026-05-22 17:06:09,918 INFO END test_simple_sentiment_positive
+2026-05-22 17:06:09,922 INFO START test_simple_sentiment_negative
+2026-05-22 17:06:09,925 INFO label=negative, score=0.7
+2026-05-22 17:06:09,926 INFO END test_simple_sentiment_negative
+2026-05-22 17:06:09,928 INFO START test_classify_issue_billing
+2026-05-22 17:06:09,929 INFO cat=consultation
+2026-05-22 17:06:09,931 INFO END test_classify_issue_billing
+2026-05-22 17:06:09,933 INFO START test_classify_issue_tech
+2026-05-22 17:06:09,934 INFO cat=technical_support
+2026-05-22 17:06:09,937 INFO END test_classify_issue_tech
+2026-05-22 17:06:09,943 INFO START test_classify_issue_other
+2026-05-22 17:06:09,944 INFO cat=consultation
+2026-05-22 17:06:09,945 INFO END test_classify_issue_other
+2026-05-22 17:06:09,954 INFO START test_script_check_greeting
+2026-05-22 17:06:09,957 INFO found_phrases=['добрый день'], compliance_pct=50.0
+2026-05-22 17:06:09,959 INFO END test_script_check_greeting
+2026-05-22 17:06:09,961 INFO START test_script_check_greeting_missing
+2026-05-22 17:06:09,962 INFO found_phrases=[], compliance_pct=0.0
+2026-05-22 17:06:09,963 INFO END test_script_check_greeting_missing
+2026-05-22 17:06:09,966 INFO START test_priority_high
+2026-05-22 17:06:09,969 INFO END test_priority_high
+2026-05-22 17:06:09,972 INFO START test_priority_low
+2026-05-22 17:06:09,975 INFO END test_priority_low
+2026-05-22 17:06:09,978 INFO START test_create_and_delete_employee
+2026-05-22 17:06:10,101 INFO END test_create_and_delete_employee
+2026-05-22 17:06:10,103 INFO START test_create_and_delete_client
+2026-05-22 17:06:10,179 INFO END test_create_and_delete_client
+2026-05-22 17:06:10,181 INFO START test_create_and_get_call
+2026-05-22 17:06:10,282 INFO END test_create_and_get_call
+2026-05-22 17:06:22,799 INFO START test_simple_sentiment_positive
+2026-05-22 17:06:22,802 INFO label=positive, score=0.7
+2026-05-22 17:06:22,822 INFO END test_simple_sentiment_positive
+2026-05-22 17:06:22,828 INFO START test_simple_sentiment_negative
+2026-05-22 17:06:22,832 INFO label=negative, score=0.7
+2026-05-22 17:06:22,839 INFO END test_simple_sentiment_negative
+2026-05-22 17:06:22,845 INFO START test_classify_issue_billing
+2026-05-22 17:06:22,848 INFO cat=consultation
+2026-05-22 17:06:22,855 INFO END test_classify_issue_billing
+2026-05-22 17:06:22,860 INFO START test_classify_issue_tech
+2026-05-22 17:06:22,864 INFO cat=technical_support
+2026-05-22 17:06:22,871 INFO END test_classify_issue_tech
+2026-05-22 17:06:22,878 INFO START test_classify_issue_other
+2026-05-22 17:06:22,881 INFO cat=consultation
+2026-05-22 17:06:22,890 INFO END test_classify_issue_other
+2026-05-22 17:06:22,897 INFO START test_script_check_greeting
+2026-05-22 17:06:22,901 INFO found_phrases=['добрый день'], compliance_pct=50.0
+2026-05-22 17:06:22,912 INFO END test_script_check_greeting
+2026-05-22 17:06:22,919 INFO START test_script_check_greeting_missing
+2026-05-22 17:06:22,924 INFO found_phrases=[], compliance_pct=0.0
+2026-05-22 17:06:22,931 INFO END test_script_check_greeting_missing
+2026-05-22 17:06:22,939 INFO START test_priority_high
+2026-05-22 17:06:22,947 INFO END test_priority_high
+2026-05-22 17:06:22,954 INFO START test_priority_low
+2026-05-22 17:06:22,964 INFO END test_priority_low
+2026-05-22 17:06:22,972 INFO START test_create_and_delete_employee
+2026-05-22 17:06:23,062 INFO END test_create_and_delete_employee
+2026-05-22 17:06:23,068 INFO START test_create_and_delete_client
+2026-05-22 17:06:23,154 INFO END test_create_and_delete_client
+2026-05-22 17:06:23,161 INFO START test_create_and_get_call
+2026-05-22 17:06:23,274 INFO END test_create_and_get_call
