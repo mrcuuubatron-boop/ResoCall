@@ -142,11 +142,20 @@ class ProcessingPipeline:
 
     def _simple_sentiment(self, text: str) -> tuple[str, float]:
         text_l = text.lower()
-        neg_words = ["жалоба", "ужас", "плохо", "претенз", "не работает", "ошибка", "расторг"]
-        pos_words = ["спасибо", "хорошо", "отлично", "помогло", "благодар"]
+        # Добавим больше форм слов и простую лемматизацию (по суффиксам)
+        neg_words = ["жалоба", "жалоб", "ужас", "плохо", "плох", "претенз", "не работает", "ошибка", "ошибк", "расторг", "жаловаться", "безобразие"]
+        pos_words = ["спасибо", "хорошо", "отлично", "помогло", "помогли", "помочь", "благодар", "молодец"]
 
-        neg_score = sum(1 for w in neg_words if w in text_l)
-        pos_score = sum(1 for w in pos_words if w in text_l)
+        def normalize(word: str) -> str:
+            # Очень простая лемматизация: убираем окончания
+            for suf in ["ся", "сь", "ий", "ый", "ая", "ое", "ие", "ли", "ла", "ло", "ть", "ть", "ие", "ий", "ый", "ой", "ую", "ем", "им", "ом", "его", "ему", "их", "ых", "ую", "юю", "ее", "яя", "ее", "ие", "ей", "ей", "ую", "ую", "ий", "ый", "ая", "ое", "ие", "ий", "ый", "ой", "ую", "ем", "им", "ом", "его", "ему", "их", "ых", "ую", "юю", "ее", "яя", "ее", "ие", "ей", "ей", "ую", "ую"]:
+                if word.endswith(suf):
+                    return word[:-len(suf)]
+            return word
+
+        words = [normalize(w) for w in text_l.split()]
+        neg_score = sum(1 for w in neg_words if any(w in word for word in words))
+        pos_score = sum(1 for w in pos_words if any(w in word for word in words))
 
         if neg_score > pos_score:
             return "negative", min(1.0, 0.5 + 0.1 * neg_score)
